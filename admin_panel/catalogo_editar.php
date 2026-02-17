@@ -1,0 +1,74 @@
+<?php
+require_once '../includes/session.php';
+require_once '../includes/conexion.php';
+verificarSesion();
+
+$id = $_GET['id'] ?? 0;
+$producto = $pdo->prepare("SELECT * FROM productos WHERE id = ?");
+$producto->execute([$id]);
+$p = $producto->fetch();
+
+if (!$p) {
+    header('Location: productos.php');
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $nombre = $_POST['nombre'];
+    $descripcion = $_POST['descripcion'];
+    $precio = $_POST['precio'];
+    $imagen_url = $_POST['imagen_url'];
+    $categoria = $_POST['categoria'];
+    
+    $stmt = $pdo->prepare("UPDATE productos SET nombre=?, descripcion=?, precio=?, imagen_url=?, categoria=? WHERE id=?");
+    if ($stmt->execute([$nombre, $descripcion, $precio, $imagen_url, $categoria, $id])) {
+        header('Location: catalogo_productos.php?ok=2');
+        exit;
+    } else {
+        $error = "Error al actualizar";
+    }
+}
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Editar Producto</title>
+    <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+    <div class="form-container">
+        <h1>✏️ Editar Producto</h1>
+        
+        <?php if (isset($error)) echo "<p style='color:red'>$error</p>"; ?>
+        
+        <form method="POST">
+            <label>Nombre del Producto</label>
+            <input type="text" name="nombre" value="<?php echo htmlspecialchars($p['nombre']); ?>" required>
+            
+            <label>Descripción</label>
+            <textarea name="descripcion" rows="4" required><?php echo htmlspecialchars($p['descripcion']); ?></textarea>
+            
+            <label>Precio ($)</label>
+            <input type="number" step="0.01" name="precio" value="<?php echo $p['precio']; ?>" required>
+            
+            <label>URL de la Imagen</label>
+            <input type="text" name="imagen_url" value="<?php echo htmlspecialchars($p['imagen_url']); ?>">
+            <?php if (!empty($p['imagen_url'])): ?>
+                <div class="imagen-actual">
+                    Imagen actual: <a href="<?php echo $p['imagen_url']; ?>" target="_blank">Ver</a>
+                </div>
+            <?php endif; ?>
+            
+            <label>Categoría</label>
+            <select name="categoria" required>
+                <option value="Hogar" <?php echo $p['categoria']=='Hogar'?'selected':''; ?>>Hogar</option>
+                <option value="Industrial" <?php echo $p['categoria']=='Industrial'?'selected':''; ?>>Industrial</option>
+                <option value="Automotriz" <?php echo $p['categoria']=='Automotriz'?'selected':''; ?>>Automotriz</option>
+            </select>
+            
+            <button type="submit">Actualizar Producto</button>
+            <a href="catalogo_productos.php"><button type="button" class="cancelar">Cancelar</button></a>
+        </form>
+    </div>
+</body>
+</html>

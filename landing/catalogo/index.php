@@ -1,9 +1,6 @@
 <?php
 // 1. CONEXIÓN A LA BASE DE DATOS
-$host = 'localhost';
-$dbname = 'u918498641_catalogo_db';
-$username = 'u918498641_sgonzalezm';
-$password = '3lR10Quefluye$';
+include '../../includes/conexion.php';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
@@ -22,102 +19,7 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <title>Catálogo de Productos</title>
     <meta charset="UTF-8">
-    <style>
-        body { font-family: Arial; margin: 0; padding: 20px; background: #f5f5f5; }
-        h1 { text-align: center; color: #333; }
-        .productos { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-            gap: 20px; 
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .producto { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .producto-imagen {
-            width: 100%;
-            height: 180px;
-            background-color: #e9ecef;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #6c757d;
-            font-size: 14px;
-        }
-        .producto-imagen img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 5px;
-        }
-        .categoria { 
-            background: #007bff; 
-            color: white; 
-            padding: 4px 12px; 
-            border-radius: 20px; 
-            font-size: 12px; 
-            display: inline-block;
-            margin-bottom: 10px;
-        }
-        h3 { 
-            margin: 10px 0; 
-            color: #1a365d;
-            font-size: 1.2em;
-        }
-        .descripcion { 
-            color: #666; 
-            font-size: 0.9em;
-            line-height: 1.5;
-            margin-bottom: 15px;
-        }
-        .precio { 
-            color: #28a745; 
-            font-size: 24px; 
-            font-weight: bold;
-            margin: 15px 0;
-        }
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: 500;
-        }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-        .sin-productos {
-            text-align: center;
-            padding: 60px;
-            color: #666;
-            grid-column: 1 / -1;
-        }
-        .nav {
-            background: #1a365d;
-            padding: 15px 0;
-            margin-bottom: 30px;
-        }
-        .nav .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            color: white;
-        }
-        .nav a {
-            color: white;
-            text-decoration: none;
-        }
-    </style>
+    <link rel="stylesheet" href="../css/store.css">
 </head>
 <body>
     <div class="nav">
@@ -167,7 +69,7 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <footer style="background: #1a365d; color: white; padding: 30px 0; margin-top: 60px;">
         <div style="text-align: center;">
-            <p>© 2024 Tu Empresa - Todos los derechos reservados</p>
+            <p>© 2026 AHD Clean - Todos los derechos reservados</p>
         </div>
     </footer>
 </body>
