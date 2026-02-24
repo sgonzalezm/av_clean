@@ -95,6 +95,19 @@ h1, h2, h3, h4 {
     align-items: center;
     padding: 15px 20px;
 }
+/*
+.navbar .container .logo .logo-icon .logo-img {
+    width: 60px !important;      
+    height: 60px !important; 
+    object-fit: contain; 
+    display: block;  
+}*/
+
+.logo-img{
+    width: 90px;
+    height: 90px;
+    object-fit: contain;
+}
 
 .logo {
     display: flex;

@@ -37,25 +37,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html>
 <head>
     <title>Agregar Usuario</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
 </head>
 <body>
+    <!-- Botón toggle para móvil -->
+    <button class="menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
     <div class="form-container">
         <h1>➕ Agregar Nuevo Usuario</h1>
-        
-        <?php if (isset($error)): ?>
-            <div class="error"><?php echo $error; ?></div>
-        <?php endif; ?>
-        
         <form method="POST">
-            <label>Nombre Completo</label>
-            <input type="text" name="nombre" required>
+            <label>Nombre Completo
+                <input type="text" name="nombre" required>
+            </label>
             
-            <label>Email</label>
-            <input type="email" name="email" required>
+            <label>Email
+                <input type="email" name="email" required>
+            </label>
             
-            <label>Nombre de Usuario</label>
-            <input type="text" name="usuario" required>
+            <label>Nombre de Usuario
+                <input type="text" name="usuario" required>
+            </label>
             <div class="info">Se usará para iniciar sesión</div>
             
             <label>Contraseña</label>
@@ -79,6 +84,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <a href="usuarios.php" class="btn-cancelar">Cancelar</a>
             </div>
         </form>
+
+         <?php if (isset($error)): ?>
+            <div class="error"><?php echo $error; ?></div>
+        <?php endif; ?>
     </div>
+    <script src="../js/admin.js"></script>
 </body>
 </html>

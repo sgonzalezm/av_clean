@@ -24,9 +24,16 @@ $productos = $pdo->query("SELECT * FROM productos ORDER BY id DESC")->fetchAll()
 <html>
 <head>
     <title>Gestionar Productos</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
 </head>
 <body>
+    <!-- Botón toggle para móvil -->
+    <button class="menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
     <div class="sidebar">
         <h2>⚙️ Admin Panel</h2>
         <a href="index.php">📊 Dashboard</a>
@@ -97,5 +104,6 @@ $productos = $pdo->query("SELECT * FROM productos ORDER BY id DESC")->fetchAll()
             <p style="text-align: center; padding: 40px; color: #666;">No hay productos registrados</p>
         <?php endif; ?>
     </div>
+    <script src="../js/admin.js"></script>
 </body>
 </html>

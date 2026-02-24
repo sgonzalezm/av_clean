@@ -23,9 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html>
 <head>
     <title>Agregar Producto</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
 </head>
 <body>
+    <!-- Botón toggle para móvil -->
+    <button class="menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
     <div class="form-container">
         <h1>➕ Agregar Producto</h1>
         
@@ -56,5 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <a href="catalogo_productos.php"><button type="button" class="cancelar">Cancelar</button></a>
         </form>
     </div>
+    <script src="../js/admin.js"></script>
 </body>
 </html>
