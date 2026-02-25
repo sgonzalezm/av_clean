@@ -121,7 +121,7 @@ body {
 
 /* ===== CONTENIDO PRINCIPAL ===== */
 .main {
-    flex: 1;
+    flex: 2;
     padding: 30px;
     margin-left: 250px;
     width: calc(100% - 250px);
@@ -370,6 +370,13 @@ tr:last-child td {
     padding: 25px;
     box-shadow: 0 2px 15px rgba(0,0,0,0.08);
     margin-bottom: 20px;
+}
+
+.card .card-sub{
+    width: 20%;
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
 }
 
 .card-header {
@@ -947,14 +954,6 @@ select.form-control {
         font-size: 1.2rem;
     }
     
-    .form-container {
-        padding: 15px;
-    }
-    
-    .form-container h1 {
-        font-size: 1.3rem;
-    }
-    
     .form-control {
         padding: 10px 12px;
         font-size: 16px; /* Evita zoom en iOS */
@@ -1002,13 +1001,13 @@ select.form-control {
         margin: 30px auto;
         background: white;
         padding: 30px;
-        border-radius: 16px;
+        border-radius: 20px;
         box-shadow: 0 5px 20px rgba(0,0,0,0.08);
     }
 
     .form-container h1 {
         color: #1a365d;
-        margin-bottom: 30px;
+        margin-bottom: 10px;
         font-size: 1.8rem;
         display: flex;
         align-items: center;
@@ -1329,33 +1328,6 @@ select.form-control {
     }
 }
 
-@media screen and (max-width: 480px) {
-    .form-container {
-        padding: 15px;
-    }
-    
-    .form-container h1 {
-        font-size: 1.3rem;
-    }
-    
-    .form-container input,
-    .form-container select {
-        padding: 12px;
-        font-size: 16px; /* Evita zoom en iOS */
-    }
-    
-    .login-box {
-        padding: 25px 15px;
-    }
-    
-    .login-box h2 {
-        font-size: 1.5rem;
-    }
-    
-    .login-box input {
-        font-size: 16px;
-    }
-}
 
 /* ===== UTILIDADES ===== */
 .text-center { text-align: center; }

@@ -5,6 +5,9 @@ verificarSesion();
 // Solo admin puede agregar usuarios
 verificarRol(['admin']);
 
+// Obtener información del usuario para el sidebar
+$user = $_SESSION['usuario'] ?? ['nombre' => 'Usuario', 'rol' => 'admin'];
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nombre = $_POST['nombre'];
     $email = $_POST['email'];
@@ -36,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Agregar Usuario</title>
+    <title>Agregar Usuario | Panel Admin</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -47,48 +50,186 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <button class="menu-toggle" onclick="toggleSidebar()">
         <i class="fas fa-bars"></i>
     </button>
-    <div class="form-container">
-        <h1>➕ Agregar Nuevo Usuario</h1>
-        <form method="POST">
-            <label>Nombre Completo
-                <input type="text" name="nombre" required>
-            </label>
-            
-            <label>Email
-                <input type="email" name="email" required>
-            </label>
-            
-            <label>Nombre de Usuario
-                <input type="text" name="usuario" required>
-            </label>
-            <div class="info">Se usará para iniciar sesión</div>
-            
-            <label>Contraseña</label>
-            <input type="password" name="password" required minlength="6">
-            <div class="info">Mínimo 6 caracteres</div>
-            
-            <label>Rol</label>
-            <select name="rol" required>
-                <option value="admin">Administrador (Acceso total)</option>
-                <option value="editor" selected>Editor (Puede gestionar productos)</option>
-                <option value="visitante">Visitante (Solo ver)</option>
-            </select>
-            
-            <div class="checkbox">
-                <input type="checkbox" name="activo" id="activo" checked>
-                <label for="activo" style="display: inline; margin: 0;">Usuario activo</label>
-            </div>
-            
-            <div class="button-group">
-                <button type="submit" class="btn-guardar">Guardar Usuario</button>
-                <a href="usuarios.php" class="btn-cancelar">Cancelar</a>
-            </div>
-        </form>
 
-         <?php if (isset($error)): ?>
-            <div class="error"><?php echo $error; ?></div>
-        <?php endif; ?>
+    <!-- Sidebar (menú lateral) -->
+    <div class="sidebar">
+        <h2><i class="fas fa-store"></i> Panel Admin</h2>
+        <a href="index.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'activo' : ''; ?>">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </a>
+        <a href="catalogo_productos.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'catalogo_productos.php' ? 'activo' : ''; ?>">
+            <i class="fas fa-box"></i> Productos
+        </a>
+        <a href="categorias.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'categorias.php' ? 'activo' : ''; ?>">
+            <i class="fas fa-tags"></i> Categorías
+        </a>
+        <a href="usuarios.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'usuarios.php' ? 'activo' : ''; ?>">
+            <i class="fas fa-users"></i> Usuarios
+        </a>
+        <a href="pedidos.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'pedidos.php' ? 'activo' : ''; ?>">
+            <i class="fas fa-shopping-cart"></i> Pedidos
+        </a>
+        <a href="configuracion.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'configuracion.php' ? 'activo' : ''; ?>">
+            <i class="fas fa-cog"></i> Configuración
+        </a>
+        <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Salir</a>
+        <div class="rol-info">
+            <i class="fas fa-user-circle"></i> 
+            <?php echo htmlspecialchars($user['nombre']); ?> (<?php echo htmlspecialchars($user['rol']); ?>)
+        </div>
     </div>
+
+    <!-- Contenido principal - ¡ESTO FALTABA! -->
+    <div class="main">
+        <!-- Header / Barra superior -->
+        <div class="header">
+            <div class="header-left">
+                <h1><i class="fas fa-user-plus"></i> Agregar Nuevo Usuario</h1>
+            </div>
+            <div>
+                <a href="usuarios.php" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver a Usuarios
+                </a>
+            </div>
+        </div>
+
+        <!-- Mensajes de error -->
+        <?php if (isset($error)): ?>
+            <div class="mensaje error">
+                <i class="fas fa-exclamation-circle"></i>
+                <?php echo htmlspecialchars($error); ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Formulario con las clases correctas -->
+        <div class="form-container">
+            <form method="POST" class="slide-in">
+                <div class="form-group">
+                    <label for="nombre">
+                        <i class="fas fa-user"></i> Nombre Completo
+                    </label>
+                    <input type="text" 
+                           id="nombre" 
+                           name="nombre" 
+                           class="form-control" 
+                           placeholder="Ej: Juan Pérez"
+                           value="<?php echo isset($_POST['nombre']) ? htmlspecialchars($_POST['nombre']) : ''; ?>"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">
+                        <i class="fas fa-envelope"></i> Email
+                    </label>
+                    <input type="email" 
+                           id="email" 
+                           name="email" 
+                           class="form-control" 
+                           placeholder="ejemplo@correo.com"
+                           value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label for="usuario">
+                        <i class="fas fa-id-card"></i> Nombre de Usuario
+                    </label>
+                    <input type="text" 
+                           id="usuario" 
+                           name="usuario" 
+                           class="form-control" 
+                           placeholder="ej: juanperez123"
+                           value="<?php echo isset($_POST['usuario']) ? htmlspecialchars($_POST['usuario']) : ''; ?>"
+                           required>
+                    <div class="info">
+                        <i class="fas fa-info-circle"></i>
+                        Se usará para iniciar sesión
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        <i class="fas fa-lock"></i> Contraseña
+                    </label>
+                    <input type="password" 
+                           id="password" 
+                           name="password" 
+                           class="form-control" 
+                           placeholder="••••••••"
+                           minlength="6"
+                           required>
+                    <div class="info">
+                        <i class="fas fa-info-circle"></i>
+                        Mínimo 6 caracteres
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="rol">
+                        <i class="fas fa-shield-alt"></i> Rol
+                    </label>
+                    <select id="rol" name="rol" class="form-control" required>
+                        <option value="admin" <?php echo (isset($_POST['rol']) && $_POST['rol'] == 'admin') ? 'selected' : ''; ?>>
+                            👑 Administrador (Acceso total)
+                        </option>
+                        <option value="editor" <?php echo (!isset($_POST['rol']) || $_POST['rol'] == 'editor') ? 'selected' : ''; ?>>
+                            ✏️ Editor (Puede gestionar productos)
+                        </option>
+                        <option value="visitante" <?php echo (isset($_POST['rol']) && $_POST['rol'] == 'visitante') ? 'selected' : ''; ?>>
+                            👁️ Visitante (Solo ver)
+                        </option>
+                    </select>
+                </div>
+
+                <div class="form-group checkbox">
+                    <input type="checkbox" 
+                           name="activo" 
+                           id="activo" 
+                           <?php echo (!isset($_POST['activo']) || $_POST['activo'] == 'on') ? 'checked' : ''; ?>>
+                    <label for="activo">
+                        <i class="fas fa-check-circle"></i>
+                        Usuario activo (puede iniciar sesión)
+                    </label>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-guardar">
+                        <i class="fas fa-save"></i> Guardar Usuario
+                    </button>
+                    <a href="usuarios.php" class="btn-cancelar">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="../js/admin.js"></script>
+    <script>
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('active');
+        }
+
+        // Cerrar sidebar al hacer clic fuera en móvil
+        document.addEventListener('click', function(event) {
+            const sidebar = document.querySelector('.sidebar');
+            const toggle = document.querySelector('.menu-toggle');
+            
+            if (window.innerWidth <= 768) {
+                if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+                    sidebar.classList.remove('active');
+                }
+            }
+        });
+
+        // Validar formulario antes de enviar
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            if (password.length < 6) {
+                e.preventDefault();
+                alert('La contraseña debe tener al menos 6 caracteres');
+            }
+        });
+    </script>
 </body>
 </html>
