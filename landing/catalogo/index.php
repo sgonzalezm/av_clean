@@ -45,7 +45,7 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
     <title>Catálogo de Productos</title>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="../css/store.css">
-    <!--<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">-->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 </head>
 <body>
@@ -55,6 +55,19 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
             <span>Catálogo de Productos</span>
         </div>
     </div>
+
+    <header>
+        <div class="carrito-contenedor">
+        <a href="ver_carrito.php" class="carrito-link">
+            <i class="fas fa-shopping-cart"></i> 🛒 <span id="carrito-count" class="badge">
+                <?php 
+                    // Sumamos todas las cantidades del array de sesión
+                    echo isset($_SESSION['carrito']) ? array_sum($_SESSION['carrito']) : 0; 
+                ?>
+        </span>
+    </a>
+</div>
+    </header>
 
     <div class="container">
         <h2 style="text-align: center; margin-bottom: 10px;">Nuestros Productos</h2>
@@ -120,7 +133,7 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
                             <img src="<?php echo htmlspecialchars($p['imagen_url']); ?>" 
                                  alt="<?php echo htmlspecialchars($p['nombre']); ?>">
                         <?php else: ?>
-                            <span>📷 Sin imagen</span>
+                            <span>Sin imagen</span>
                         <?php endif; ?>
                     </div>
                     
@@ -133,9 +146,10 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
                     </div>
                     
                     <div class="precio">$<?php echo number_format($p['precio'], 2); ?></div>
-                    
-                    <a href="#" class="btn">Ver detalles</a>
-                    <a href="#" class="btn">Agregar</a>
+                    <div class="producto-botones">
+                        <a href="#" class="btn">Ver detalles</a>
+                        <a href="#" class="btn btn-agregar-ajax" data-id="<?php echo $p['id']; ?>">Agregar al carrito</a>                   
+                    </div>
                 </div>
                 <?php endforeach; ?>
             <?php else: ?>
@@ -158,5 +172,34 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
             <p>© 2026 AHD Clean - Todos los derechos reservados</p>
         </div>
     </footer>
+
+    <script>
+        document.querySelectorAll('.btn-agregar-ajax').forEach(boton => {
+        boton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const id = this.getAttribute('data-id');
+            
+            fetch(`agregar_carrito.php?id=${id}`)
+                .then(res => {
+                    if(res.ok) {
+                        // Animación visual de éxito
+                        this.textContent = "¡Añadido!";
+                        this.style.backgroundColor = "#28a745"; // Cambia a verde
+
+                        const badge = document.getElementById('carrito-count');
+                        let cantidadActual = parseInt(badge.textContent);
+                        badge.textContent = cantidadActual + 1;
+
+                        
+                        
+                        setTimeout(() => {
+                            this.textContent = "Agregar al carrito";
+                            this.style.backgroundColor = "#002bff"; // Vuelve al azul original
+                        }, 1500);
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
