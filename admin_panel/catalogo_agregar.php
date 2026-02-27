@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     $stmt = $pdo->prepare("INSERT INTO productos (nombre, descripcion, precio, imagen_url, categoria) VALUES (?, ?, ?, ?, ?)");
     if ($stmt->execute([$nombre, $descripcion, $precio, $imagen_url, $categoria])) {
-        header('Location: productos.php?ok=1');
+        header('Location: catalogo_productos.php?ok=1');
         exit;
     } else {
         $error = "Error al guardar";
@@ -48,7 +48,7 @@ $user = $_SESSION['usuario'] ?? ['nombre' => 'Usuario', 'rol' => 'usuario'];
                 <h1><i class="fas fa-plus-circle"></i> Agregar Nuevo Producto</h1>
             </div>
             <div>
-                <a href="productos.php" class="btn btn-secondary">
+                <a href="catalogo_productos.php" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Volver a Productos
                 </a>
             </div>
@@ -141,7 +141,7 @@ $user = $_SESSION['usuario'] ?? ['nombre' => 'Usuario', 'rol' => 'usuario'];
                     <button type="submit" class="btn-guardar">
                         <i class="fas fa-save"></i> Guardar Producto
                     </button>
-                    <a href="productos.php" class="btn-cancelar">
+                    <a href="catalogo_productos.php" class="btn-cancelar">
                         <i class="fas fa-times"></i> Cancelar
                     </a>
                 </div>
