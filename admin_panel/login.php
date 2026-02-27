@@ -38,14 +38,52 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </head>
 <body>
     <div class="login-box">
-        <h2>🔐 Panel de Administración</h2>
-        <?php if (isset($error)) echo "<p class='error'>$error</p>"; ?>
+        <h2>
+            <i class="fas fa-store"></i>
+            Panel de Administración
+        </h2>
+        
+        <?php if (isset($error)): ?>
+            <p class="error">
+                <?php echo htmlspecialchars($error); ?>
+            </p>
+        <?php endif; ?>
+        
         <form method="POST">
-            <input type="text" name="usuario" placeholder="Usuario" required>
-            <input type="password" name="password" placeholder="Contraseña" required>
-            <button type="submit">Ingresar</button>
+            <div class="input-group">
+                <i class="fas fa-user"></i>
+                <input type="text" 
+                       name="usuario" 
+                       placeholder="Usuario" 
+                       required 
+                       autocomplete="username"
+                       autofocus>
+            </div>
+            
+            <div class="input-group">
+                <i class="fas fa-lock"></i>
+                <input type="password" 
+                       name="password" 
+                       placeholder="Contraseña" 
+                       required
+                       autocomplete="current-password">
+            </div>
+            
+            <button type="submit">
+                <i class="fas fa-sign-in-alt"></i>
+                Ingresar
+            </button>
         </form>
+        
+        <!-- Opcional: Agregar enlace para recuperar contraseña -->
+        <div class="login-footer">
+            <a href="recuperar.php">
+                <i class="fas fa-question-circle"></i>
+                ¿Olvidaste tu contraseña?
+            </a>
+        </div>
     </div>
+    
     <script src="../js/admin.js"></script>
 </body>
 </html>

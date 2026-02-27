@@ -174,32 +174,52 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
     </footer>
 
     <script>
-        document.querySelectorAll('.btn-agregar-ajax').forEach(boton => {
+    // 1. Definimos la función UNA SOLA VEZ
+    function actualizarContadorCarrito() {
+        fetch('obtener_total_carrito.php')
+            .then(res => res.text())
+            .then(total => {
+                const badge = document.getElementById('carrito-count');
+                if (badge) {
+                    badge.textContent = total.trim() || "0";
+                }
+            })
+            .catch(err => console.error("Error al sincronizar carrito:", err));
+    }
+
+    // 2. Sincronizar cuando la página se muestra (carga inicial o botón atrás)
+    window.addEventListener('pageshow', function(event) {
+        actualizarContadorCarrito();
+    });
+
+    // 3. Configurar los botones de "Agregar" una sola vez
+    document.querySelectorAll('.btn-agregar-ajax').forEach(boton => {
         boton.addEventListener('click', function(e) {
             e.preventDefault();
             const id = this.getAttribute('data-id');
+            const botonActual = this; // Referencia clara al botón presionado
             
             fetch(`agregar_carrito.php?id=${id}`)
                 .then(res => {
                     if(res.ok) {
-                        // Animación visual de éxito
-                        this.textContent = "¡Añadido!";
-                        this.style.backgroundColor = "#28a745"; // Cambia a verde
+                        // Feedback visual de éxito
+                        const textoOriginal = botonActual.textContent;
+                        botonActual.textContent = "¡Añadido!";
+                        botonActual.style.backgroundColor = "#28a745"; 
 
-                        const badge = document.getElementById('carrito-count');
-                        let cantidadActual = parseInt(badge.textContent);
-                        badge.textContent = cantidadActual + 1;
+                        // Llamamos a la función de actualización
+                        actualizarContadorCarrito();
 
-                        
-                        
+                        // Regresar el botón a su estado original después de 1.5 seg
                         setTimeout(() => {
-                            this.textContent = "Agregar al carrito";
-                            this.style.backgroundColor = "#002bff"; // Vuelve al azul original
+                            botonActual.textContent = textoOriginal;
+                            botonActual.style.backgroundColor = "#002bff";
                         }, 1500);
                     }
-                });
-            });
+                })
+                .catch(err => console.error("Error al agregar:", err));
         });
-    </script>
+    });
+</script>
 </body>
 </html>
