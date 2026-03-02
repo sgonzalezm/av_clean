@@ -118,7 +118,7 @@ h1::after {
 .filtros form {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 1.5rem;
     align-items: flex-end;
 }
 
@@ -170,6 +170,7 @@ h1::after {
     transition: all 0.3s ease;
     text-decoration: none;
     display: inline-block;
+    margin-top: 0.5rem;
     margin-right: 1rem;
 }
 
@@ -177,6 +178,7 @@ h1::after {
     background: var(--primary-color);
     color: var(--white);
     box-shadow: var(--shadow);
+    margin-top: 1rem;
 }
 
 .btn-filtro:hover {

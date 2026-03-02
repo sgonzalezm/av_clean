@@ -10,6 +10,8 @@
 // Agregar un bloque de "Personalización" para configurar el tema del panel, colores, etc.
 // Agregar un bloque de "Logs" para ver actividad reciente, errores, etc.
 // Agregar un bloque de "Backups" para gestionar copias de seguridad de la base de datos, etc.
+// Editar los niveles de objetivos de ventas: Nivel oro, plata, bronce. Agregar recompensas para cada nivel. Agregar un bloque de "Recompensas" para configurar esto.
+
 
 ?>
 <!DOCTYPE html>

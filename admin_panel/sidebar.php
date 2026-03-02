@@ -33,6 +33,9 @@ function claseActiva($pagina) {
     <a href="index.php" class="<?php echo claseActiva('index.php'); ?>">
         <i class="fas fa-tachometer-alt"></i> Dashboard
     </a>
+    <a href="metricos.php" class="<?php echo claseActiva('metricos.php'); ?>">
+        <i class="fas fa-tachometer-alt"></i> Métricas
+    </a>
     
     <!-- Solo para editores y admins -->
     <?php if (mostrarEnlace('editor')): ?>

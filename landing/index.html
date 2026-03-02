@@ -379,9 +379,11 @@
                             <textarea id="message" name="message" rows="5" required></textarea>
                         </div>
                         
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-paper-plane"></i> Enviar Mensaje
+                        <button type="submit" id="submitBtn" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> <span id="btnText">Enviar Mensaje</span>
                         </button>
+
+                        <div id="formResponse" style="margin-top: 15px; display: none;"></div>
                     </form>
                 </div>
             </div>
@@ -467,5 +469,48 @@
     <!-- Scripts -->
     <script src="js/main.js"></script>
     <script src="js/contact-form.js"></script>
+    <script>
+                document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault(); // Evita que la página se recargue
+
+            const form = this;
+            const btn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const responseDiv = document.getElementById('formResponse');
+
+            // Estado de "Enviando..."
+            btn.disabled = true;
+            btnText.innerText = 'Enviando...';
+            responseDiv.style.display = 'none';
+
+            // Creamos los datos para enviar
+            const formData = new FormData(form);
+
+            // Enviamos al PHP
+            fetch('enviar.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                responseDiv.style.display = 'block';
+                if (data.includes("éxito")) {
+                    responseDiv.innerHTML = '<p style="color: green;">✅ ¡Mensaje enviado correctamente!</p>';
+                    form.reset(); // Limpia el formulario
+                } else {
+                    responseDiv.innerHTML = '<p style="color: red;">❌ Error: ' + data + '</p>';
+                }
+            })
+            .catch(error => {
+                responseDiv.style.display = 'block';
+                responseDiv.innerHTML = '<p style="color: red;">❌ Hubo un problema con la conexión.</p>';
+            })
+            .finally(() => {
+                // Restaurar el botón
+                btn.disabled = false;
+                btnText.innerText = 'Enviar Mensaje';
+            });
+        });
+    </script>
 </body>
 </html>

@@ -3,6 +3,10 @@ require_once '../includes/session.php';
 require_once '../includes/conexion.php';
 verificarSesion();
 
+// Agregar leaderboards, ventas totales en cantidad y en dinero, vendedores destacados.
+// Ventas diarias, objetivos del mes, mezcla de productos, top clientes.
+
+
 // Estadísticas
 $totalProductos = $pdo->query("SELECT COUNT(*) FROM productos")->fetchColumn();
 $totalCategorias = $pdo->query("SELECT COUNT(DISTINCT categoria) FROM productos")->fetchColumn();
