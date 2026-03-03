@@ -40,11 +40,11 @@ try {
         table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
         th { background: #f8fafc; text-align: left; padding: 12px; border-bottom: 2px solid #1a365d; }
         td { padding: 12px; border-bottom: 1px solid #eee; }
-        .total-section { text-align: right; font-size: 1.5rem; font-weight: bold; color: #1a365d; }
+        .total-section { text-align: right; font-size: 1.1rem; font-weight: bold; color: #1a365d; }
         
         .codigos-container { 
-            margin-top: 50px; 
-            padding: 20px; 
+            margin-top: 30px; 
+            padding: 10px; 
             background: #f1f5f9; 
             border-radius: 15px; 
             text-align: center; 
@@ -86,7 +86,7 @@ try {
             </div>
             <div style="text-align: right;">
                 <strong>ESTADO:</strong> PENDIENTE<br>
-                <strong>CLIENTE:</strong> Público General
+                <strong>CLIENTE:</strong> <?php echo htmlspecialchars($pedido['email']); ?>
             </div>
         </div>
 

@@ -11,6 +11,7 @@
 // Agregar un bloque de "Logs" para ver actividad reciente, errores, etc.
 // Agregar un bloque de "Backups" para gestionar copias de seguridad de la base de datos, etc.
 // Editar los niveles de objetivos de ventas: Nivel oro, plata, bronce. Agregar recompensas para cada nivel. Agregar un bloque de "Recompensas" para configurar esto.
+// Cambiar de status de pedido: pendiente, en proceso, enviado, entregado, cancelado. Agregar un bloque de "Pedidos" para gestionar esto.
 
 
 ?>
