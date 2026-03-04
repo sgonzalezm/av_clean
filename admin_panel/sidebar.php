@@ -52,6 +52,9 @@ function claseActiva($pagina) {
     <a href="usuarios.php" class="<?php echo claseActiva('usuarios.php'); ?>">
         <i class="fas fa-users"></i> Usuarios
     </a>
+    <a href="configuracion.php" class="<?php echo claseActiva('configuracion.php'); ?>">
+        <i class="fas fa-cog"></i> Configuración
+    </a>
     <?php endif; ?>
     
     <!-- Enlaces para editores y admins (continuación) -->
@@ -62,13 +65,10 @@ function claseActiva($pagina) {
     <a href="inventario.php" class="<?php echo claseActiva('inventario.php'); ?>">
         <i class="fas fa-warehouse"></i> Inventario
     </a>
-    <?php endif; ?>
-    
-    <!-- Solo para admins -->
-    <?php if (mostrarEnlace('admin')): ?>
-    <a href="configuracion.php" class="<?php echo claseActiva('configuracion.php'); ?>">
-        <i class="fas fa-cog"></i> Configuración
+    <a href="nueva_venta.php" class="<?php echo claseActiva('nueva_venta.php'); ?>">
+        <i class="fas fa-plus-circle"></i> Nueva Venta
     </a>
+
     <?php endif; ?>
     
     <!-- Salir visible para todos -->
