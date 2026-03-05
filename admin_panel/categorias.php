@@ -18,9 +18,7 @@
 </head>
 <body>
     <!-- Botón toggle para móvil -->
-    <button class="menu-toggle" onclick="toggleSidebar()">
-        <i class="fas fa-bars"></i>
-    </button>
+    <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
 
     <!-- Sidebar (menú lateral) -->
     <?php include 'sidebar.php'; ?>   
@@ -32,6 +30,7 @@
             </div>
         </div>
     </div>
-            
+          
+    <script src="../js/admin.js"></script>
 </body>
 </html>

@@ -51,6 +51,7 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+<!-- Botón toggle para móvil -->
     <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     <?php include 'sidebar.php'; ?>
     
@@ -156,5 +157,6 @@ try {
             }
         });
     </script>
+    <script src="../js/admin.js"></script>
 </body>
 </html>

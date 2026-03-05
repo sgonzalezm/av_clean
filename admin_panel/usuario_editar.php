@@ -59,10 +59,11 @@ $user_sesion = $_SESSION['usuario'] ?? ['nombre' => 'Usuario', 'rol' => 'usuario
     <link rel="stylesheet" href="../css/admin.css">
 </head>
 <body>
+    <!-- Botón toggle para móvil -->
     <button class="menu-toggle" onclick="toggleSidebar()">
         <i class="fas fa-bars"></i>
     </button>
-
+    <!-- Sidebar (menú lateral) -->
     <?php include 'sidebar.php'; ?>
 
     <div class="main">
@@ -154,10 +155,6 @@ $user_sesion = $_SESSION['usuario'] ?? ['nombre' => 'Usuario', 'rol' => 'usuario
 
     <script src="../js/admin.js"></script>
     <script>
-        function toggleSidebar() {
-            document.querySelector('.sidebar').classList.toggle('active');
-        }
-
         document.addEventListener('click', function(event) {
             const sidebar = document.querySelector('.sidebar');
             const toggle = document.querySelector('.menu-toggle');

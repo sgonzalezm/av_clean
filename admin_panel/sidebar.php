@@ -45,6 +45,9 @@ function claseActiva($pagina) {
     <a href="categorias.php" class="<?php echo claseActiva('categorias.php'); ?>">
         <i class="fas fa-tags"></i> Categorías
     </a>
+    <a href="cartera.php" class="<?php echo claseActiva('cartera.php'); ?>">
+        <i class="fas fa-wallet"></i> Cartera
+    </a>
     <?php endif; ?>
     
     <!-- Solo para admins -->

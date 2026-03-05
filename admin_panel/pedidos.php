@@ -58,7 +58,9 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body>
-
+    <!-- Botón toggle para móvil -->
+    <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+    <!-- Sidebar (menú lateral) -->
     <?php include 'sidebar.php'; ?>
     
     <div class="main">
@@ -131,10 +133,6 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </table>
     </div>
 
-    <script>
-        function toggleSidebar() {
-            document.querySelector('.sidebar').classList.toggle('active');
-        }
-    </script>
+    <script src="../js/admin.js"></script>
 </body>
 </html>

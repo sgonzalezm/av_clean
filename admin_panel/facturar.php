@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </style>
 </head>
 <body>
+    <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     <?php include 'sidebar.php'; ?>
 
     <div class="main">
@@ -115,5 +116,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <?php endif; ?>
         </div>
     </div>
+    <script src="../js/admin.js"></script>
 </body>
 </html>

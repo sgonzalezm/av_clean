@@ -63,6 +63,8 @@ $inventario = $stmt->fetchAll();
     </style>
 </head>
 <body>
+    <!-- Botón toggle para móvil -->
+    <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     <!-- Sidebar (menú lateral) -->
     <?php include 'sidebar.php'; ?>
 
@@ -133,5 +135,6 @@ $inventario = $stmt->fetchAll();
             </tbody>
         </table>
     </div>
+    <script src="../js/admin.js"></script>
 </body>
 </html>

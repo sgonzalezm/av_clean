@@ -25,7 +25,9 @@ $niveles = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="../css/admin.css">
 </head>
 <body>
+    <!-- Botón toggle para móvil -->
     <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+    <!-- Sidebar (menú lateral) -->
     <?php include 'sidebar.php'; ?>
 
     <div class="main">

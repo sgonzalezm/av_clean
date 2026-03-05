@@ -42,6 +42,10 @@ ob_start(); // Iniciamos buffer para capturar el HTML
     </style>
 </head>
 <body>
+    <!-- Botón toggle para móvil -->
+    <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+    <!-- Sidebar (menú lateral) -->
+    <?php include 'sidebar.php'; ?>
 
     <div class="header">
         <h1 class="title">Reporte de Pedidos - AHD Clean</h1>
@@ -85,7 +89,7 @@ ob_start(); // Iniciamos buffer para capturar el HTML
     <div style="margin-top: 50px; font-size: 10px; text-align: center; color: #999;">
         Documento interno para uso administrativo y financiero.
     </div>
-
+    <script src="../js/admin.js"></script>  
 </body>
 </html>
 
