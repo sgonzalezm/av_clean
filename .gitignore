@@ -1,0 +1,16 @@
+# Dependencias
+node_modules/
+vendor/
+
+# Entorno y Secretos
+.env
+config.php
+
+#misceláneos
+*.docx
+*.pdf
+*.pptx
+*.xlsx
+
+# Logs
+npm-debug.log*
