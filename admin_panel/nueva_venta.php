@@ -7,7 +7,7 @@ verificarSesion();
 $productos = $pdo->query("SELECT id, nombre, precio FROM productos ORDER BY nombre ASC")->fetchAll();
 
 // 2. Obtener clientes con su descuento según el tipo
-$sql_clientes = "SELECT c.id, c.nombre_completo, tc.nombre as tipo, tc.descuento_porcentaje 
+$sql_clientes = "SELECT c.id, c.nombre_completo, c.email, tc.nombre as tipo, tc.descuento_porcentaje 
                  FROM clientes c 
                  INNER JOIN tipos_cliente tc ON c.tipo_cliente_id = tc.id 
                  WHERE c.estatus = 'Activo' ORDER BY c.nombre_completo ASC";
@@ -21,14 +21,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $cliente_id = $_POST['cliente_id'];
         $total_antes_descuento = 0;
 
-        // Obtener el descuento del cliente seleccionado para el cálculo final en servidor
-        $stmt_desc = $pdo->prepare("SELECT tc.descuento_porcentaje FROM clientes c INNER JOIN tipos_cliente tc ON c.tipo_cliente_id = tc.id WHERE c.id = ?");
-        $stmt_desc->execute([$cliente_id]);
-        $desc_cliente = $stmt_desc->fetchColumn() / 100;
+        // --- NUEVA LÓGICA: Obtener datos completos del cliente ---
+        $stmt_c = $pdo->prepare("SELECT c.nombre_completo, c.email, c.telefono, c.direccion, tc.descuento_porcentaje 
+                                 FROM clientes c 
+                                 INNER JOIN tipos_cliente tc ON c.tipo_cliente_id = tc.id 
+                                 WHERE c.id = ?");
+        $stmt_c->execute([$cliente_id]);
+        $info_cliente = $stmt_c->fetch();
 
-        // 3. Crear pedido base (usamos el ID del cliente ahora)
-        $stmt = $pdo->prepare("INSERT INTO pedidos (usuario_id, cliente_id, total, status, fecha_pedido) VALUES (?, ?, 0, 'Confirmado', NOW())");
-        $stmt->execute([$usuario_id, $cliente_id]);
+        if (!$info_cliente) throw new Exception("Cliente no encontrado.");
+
+        $nombre_cliente = $info_cliente['nombre_completo'];
+        $email_cliente = $info_cliente['email'];
+        $telefono_cliente = $info_cliente['telefono'];
+        $direccion_cliente = $info_cliente['direccion'];
+        $desc_cliente = $info_cliente['descuento_porcentaje'] / 100;
+
+        // 3. Crear pedido base incluyendo NOMBRE y EMAIL (asumiendo que las columnas existen en 'pedidos')
+        // Si tu columna de nombre se llama diferente (ej. 'cliente_nombre'), ajusta el campo abajo.
+        $stmt = $pdo->prepare("INSERT INTO pedidos (usuario_id, cliente_id, nombre, email, telefono, domicilio, total, status, fecha_pedido) VALUES (?, ?, ?, ?, ?, ?, 0, 'Confirmado', NOW())");
+        $stmt->execute([$usuario_id, $cliente_id, $nombre_cliente, $email_cliente, $telefono_cliente, $direccion_cliente]);
         $pedido_id = $pdo->lastInsertId();
 
         foreach ($_POST['productos'] as $item) {

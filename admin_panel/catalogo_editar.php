@@ -56,6 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
+// Obtenemos todas las categorías de la base de datos
+$stmt_cat = $pdo->query("SELECT id, nombre, icono FROM categorias ORDER BY nombre ASC");
+$categorias_db = $stmt_cat->fetchAll();
+
 $user = $_SESSION['usuario'] ?? ['nombre' => 'Usuario', 'rol' => 'usuario'];
 ?>
 <!DOCTYPE html>
@@ -120,9 +124,12 @@ $user = $_SESSION['usuario'] ?? ['nombre' => 'Usuario', 'rol' => 'usuario'];
                 <div class="form-group">
                     <label><i class="fas fa-folder"></i> Categoría</label>
                     <select name="categoria" class="form-control" required>
-                        <option value="Hogar" <?php echo $p['categoria']=='Hogar'?'selected':''; ?>>🏠 Hogar</option>
-                        <option value="Industrial" <?php echo $p['categoria']=='Industrial'?'selected':''; ?>>🏭 Industrial</option>
-                        <option value="Automotriz" <?php echo $p['categoria']=='Automotriz'?'selected':''; ?>>🚗 Automotriz</option>
+                        <option value="">Seleccione una categoría</option>
+                        <?php foreach ($categorias_db as $cat): ?>
+                            <option value="<?php echo $cat['id']; ?>" <?php echo (isset($p['categoria_id']) && $p['categoria_id'] == $cat['id']) ? 'selected' : ''; ?>>
+                                <?php echo $cat['nombre']; ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
 

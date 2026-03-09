@@ -7,17 +7,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     $nombre = $_POST['nombre_completo'];
     $email = $_POST['email'];
     $tel = $_POST['telefono'];
+    $direccion = $_POST['direccion'];
     $tipo = $_POST['tipo_cliente_id'];
     $id = $_POST['cliente_id'] ?? null;
 
     try {
         if ($_POST['action'] == 'crear') {
-            $sql = "INSERT INTO clientes (nombre_completo, email, telefono, tipo_cliente_id) VALUES (?, ?, ?, ?)";
-            $pdo->prepare($sql)->execute([$nombre, $email, $tel, $tipo]);
+            $sql = "INSERT INTO clientes (nombre_completo, email, telefono, direccion, tipo_cliente_id) VALUES (?, ?, ?, ?, ?)";
+            $pdo->prepare($sql)->execute([$nombre, $email, $tel, $direccion, $tipo]);
             header("Location: cartera.php?msj=Cliente creado");
         } elseif ($_POST['action'] == 'editar') {
-            $sql = "UPDATE clientes SET nombre_completo=?, email=?, telefono=?, tipo_cliente_id=? WHERE id=?";
-            $pdo->prepare($sql)->execute([$nombre, $email, $tel, $tipo, $id]);
+            $sql = "UPDATE clientes SET nombre_completo=?, email=?, telefono=?, direccion=?, tipo_cliente_id=? WHERE id=?";
+            $pdo->prepare($sql)->execute([$nombre, $email, $tel, $direccion, $tipo, $id]);
             header("Location: cartera.php?msj=Cliente actualizado");
         }
         exit;
@@ -56,7 +57,7 @@ $total_clientes = count($clientes);
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>Cartera de Clientes | Panel Admin</title>
+    <title>Clientes | Panel Admin</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -214,6 +215,11 @@ $total_clientes = count($clientes);
                     <input type="email" name="email" id="modal_email" class="form-control" required style="width:100%; margin-top:5px;">
                 </div>
 
+                <div class="form-group" style="margin-bottom:15px;">
+                    <label>Dirección</label>
+                    <input type="text" name="direccion" id="modal_direccion" class="form-control" required style="width:100%; margin-top:5px;">
+                </div>
+
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:20px;">
                     <div>
                         <label>Teléfono</label>
@@ -278,6 +284,7 @@ const formAction = document.getElementById('formAction');
         document.getElementById('modal_nombre').value = c.nombre_completo;
         document.getElementById('modal_email').value = c.email;
         document.getElementById('modal_telefono').value = c.telefono;
+        document.getElementById('modal_direccion').value = c.direccion;
         document.getElementById('modal_tipo').value = c.tipo_cliente_id;
         
         modal.style.display = 'flex';

@@ -1,37 +1,53 @@
 <?php
 session_start();
-include '../includes/conexion.php';
+require_once '../includes/conexion.php'; // Asumo que aquí ya tienes la conexión $pdo
+
+// 1. Identificar al usuario y su rol
+$usuario_id = $_SESSION['admin_id']; // ID del usuario logueado
+$rol_usuario = $_SESSION['admin_rol']; // Asumiendo que guardas el rol en la sesión
+
+// 2. Definir el filtro SQL según el rol
+// Si es Admin, el filtro está vacío (ve todo). Si no, filtramos por su ID.
+$sql_filtro = ($rol_usuario === 'Administrador') ? "" : " AND usuario_id = :uid";
+$params = ($rol_usuario === 'Administrador') ? [] : [':uid' => $usuario_id];
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
-    
-    // --- 1. MÉTRICAS EXISTENTES ---
+    // --- 1. VENTA MENSUAL ---
     $meta_mensual = 50000;
-    $stmt = $pdo->query("SELECT SUM(total) as total_mes FROM pedidos WHERE MONTH(fecha_pedido) = MONTH(CURRENT_DATE()) AND status != 'Cancelado'");
+    $sql_venta = "SELECT SUM(total) as total_mes FROM pedidos 
+                  WHERE MONTH(fecha_pedido) = MONTH(CURRENT_DATE()) 
+                  AND status != 'Cancelado' $sql_filtro";
+    
+    $stmt = $pdo->prepare($sql_venta);
+    $stmt->execute($params);
     $venta_mes = $stmt->fetch()['total_mes'] ?? 0;
     $porcentaje_meta = min(($venta_mes / $meta_mensual) * 100, 100);
 
-    // --- 2. MÉTRICAS DE FACTURACIÓN (NUEVO) ---
-    // Sumamos el total de los pedidos que tienen un registro en la tabla 'facturacion' este mes
-    $stmt_facturado = $pdo->query("
-        SELECT SUM(p.total) as total_facturado 
-        FROM facturacion f 
-        JOIN pedidos p ON f.pedido_id = p.id 
-        WHERE MONTH(f.fecha_facturacion) = MONTH(CURRENT_DATE())
-    ");
-    $venta_facturada_mes = $stmt_facturado->fetch()['total_facturado'] ?? 0;
+    // --- 2. MÉTRICAS DE FACTURACIÓN ---
+    $sql_facturado = "SELECT SUM(p.total) as total_facturado 
+                      FROM facturacion f 
+                      JOIN pedidos p ON f.pedido_id = p.id 
+                      WHERE MONTH(f.fecha_facturacion) = MONTH(CURRENT_DATE()) $sql_filtro";
     
-    // Porcentaje de facturación respecto a la venta total
+    $stmt_facturado = $pdo->prepare($sql_facturado);
+    $stmt_facturado->execute($params);
+    $venta_facturada_mes = $stmt_facturado->fetch()['total_facturado'] ?? 0;
     $porcentaje_facturacion = ($venta_mes > 0) ? ($venta_facturada_mes / $venta_mes) * 100 : 0;
 
-    // --- 3. TOP PRODUCTOS ---
-    $stmt = $pdo->query("SELECT p.nombre, SUM(dp.cantidad) as total_vendido 
-                        FROM detalle_pedido dp 
-                        JOIN productos p ON dp.producto_id = p.id 
-                        GROUP BY p.id ORDER BY total_vendido DESC LIMIT 5");
-    $top_productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // --- 3. TOP PRODUCTOS (Filtro por vendedor) ---
+    // Nota: Aquí el JOIN requiere filtrar por la tabla de pedidos
+    $sql_top = "SELECT p.nombre, SUM(dp.cantidad) as total_vendido 
+                FROM detalle_pedido dp 
+                JOIN productos p ON dp.producto_id = p.id 
+                JOIN pedidos ped ON dp.pedido_id = ped.id
+                WHERE 1=1 $sql_filtro
+                GROUP BY p.id ORDER BY total_vendido DESC LIMIT 5";
+    
+    $stmt_top = $pdo->prepare($sql_top);
+    $stmt_top->execute($params);
+    $top_productos = $stmt_top->fetchAll(PDO::FETCH_ASSOC);
 
-    // --- 4. COMISIONES Y NIVEL ---
+    // --- 4. COMISIONES ---
     $comision_acumulada = $venta_mes * 0.03;
     $nivel = "Bronce"; $color_nivel = "#cd7f32";
     if($venta_mes > 20000) { $nivel = "Plata"; $color_nivel = "#C0C0C0"; }

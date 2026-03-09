@@ -42,38 +42,40 @@ function claseActiva($pagina) {
     <a href="catalogo_productos.php" class="<?php echo claseActiva('catalogo_productos.php'); ?>">
         <i class="fas fa-box"></i> Productos
     </a>
-    <a href="categorias.php" class="<?php echo claseActiva('categorias.php'); ?>">
-        <i class="fas fa-tags"></i> Categorías
-    </a>
     <a href="cartera.php" class="<?php echo claseActiva('cartera.php'); ?>">
-        <i class="fas fa-wallet"></i> Cartera
+        <i class="fas fa-address-book"></i> Clientes
+    </a>
+    <a href="proceso.php" class="<?php echo claseActiva('proceso.php'); ?>">
+        <i class="fas fa-tasks"></i> Procesos
+    </a>
+    <a href="inventario.php" class="<?php echo claseActiva('inventario.php'); ?>">
+        <i class="fas fa-warehouse"></i> Inventario
+    </a>
+    <a href="compras.php" class="<?php echo claseActiva('compras.php'); ?>">
+        <i class="fas fa-shopping-bag"></i> Compras
     </a>
     <?php endif; ?>
     
     <!-- Solo para admins -->
     <?php if (mostrarEnlace('admin')): ?>
-    <a href="usuarios.php" class="<?php echo claseActiva('usuarios.php'); ?>">
-        <i class="fas fa-users"></i> Usuarios
-    </a>
     <a href="configuracion.php" class="<?php echo claseActiva('configuracion.php'); ?>">
         <i class="fas fa-cog"></i> Configuración
     </a>
+    <a href="nomina.php" class="<?php echo claseActiva('nomina.php'); ?>">
+        <i class="fas fa-money-bill-wave"></i> Nómina
+    </a>
     <?php endif; ?>
-    
-    <!-- Enlaces para editores y admins (continuación) -->
-    <?php if (mostrarEnlace('editor')): ?>
-    <a href="pedidos.php" class="<?php echo claseActiva('pedidos.php'); ?>">
-        <i class="fas fa-shopping-cart"></i> Pedidos
-    </a>
-    <a href="inventario.php" class="<?php echo claseActiva('inventario.php'); ?>">
-        <i class="fas fa-warehouse"></i> Inventario
-    </a>
+
+    <!-- Enlaces para vendedores (si es que tienen acceso) -->
+    <?php if (mostrarEnlace('vendedor')): ?>
     <a href="nueva_venta.php" class="<?php echo claseActiva('nueva_venta.php'); ?>">
         <i class="fas fa-plus-circle"></i> Nueva Venta
     </a>
-
+    <a href="pedidos.php" class="<?php echo claseActiva('pedidos.php'); ?>">
+        <i class="fas fa-shopping-cart"></i> Pedidos
+    </a>
     <?php endif; ?>
-    
+        
     <!-- Salir visible para todos -->
     <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Salir</a>
     

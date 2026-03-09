@@ -44,7 +44,7 @@ body {
 .nav {
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
     color: var(--white);
-    padding: 1.5rem 0;
+    padding: 1rem 0;
     margin-bottom: 3rem;
     box-shadow: var(--shadow-lg);
 }
@@ -78,6 +78,65 @@ body {
     letter-spacing: 1px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
+
+/* --- MEJORA DE NAVEGACIÓN --- */
+.nav-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Botón de Rastreo */
+.btn-rastreo-nav { 
+    background: #edf2f7; 
+    color: #2d3748; 
+    padding: 8px 15px; 
+    border-radius: 20px; 
+    font-weight: 600; 
+    font-size: 0.9rem; 
+    cursor: pointer; 
+    border: 1px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+.btn-rastreo-nav:hover { background: #e2e8f0; }
+
+/* Estilo Circular del Carrito */
+.carrito-link {
+    background: #002bff;
+    color: white;
+    width: 52px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    position: relative;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+.badge {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    background: #e53e3e;
+    color: white;
+    font-size: 0.875rem;
+    padding: 2px 4px;
+    border-radius: 10px;
+    border: 2px solid white;
+    min-width: 18px;
+    text-align: center;
+}
+
 
 /* ===== TÍTULOS ===== */
 h1 {

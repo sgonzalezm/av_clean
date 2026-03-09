@@ -1,16 +1,17 @@
 <?php
 
-// Categorias
-// Agregar, editar, eliminar categorías de productos
-// Similar a catalogo_productos.php pero con campos específicos para categorías (nombre, descripción, imagen, etc.)
-// También se pueden mostrar estadísticas como cuántos productos hay en cada categoría, etc.
+// Procesos de negocio
+// Flujo de trabajo, tareas, asignaciones, seguimiento de procesos internos (ej. aprobación de productos, gestión de pedidos, etc.)
 // Requiere permisos de editor o admin
+// menu de procesos, con submenús para cada tipo de proceso (ej. aprobación de productos, gestión de pedidos, etc.)
+// Cada submenú muestra una lista de procesos en curso, con detalles y opciones para gestionar cada proceso (ej. aprobar/rechazar, asignar a un usuario, marcar como completado, etc.)
+
 
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Categorias</title>
+    <title>Proceso</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -26,7 +27,7 @@
     <div class="main">
         <div class="header">
             <div>
-                <h1>Categorias</h1>
+                <h1>Proceso</h1>
             </div>
         </div>
     </div>
