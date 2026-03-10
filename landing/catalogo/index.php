@@ -1,7 +1,10 @@
 <?php
-// 1. CONEXIÓN A LA BASE DE DATOS
+// 1. CONEXIÓN A LA BASE DE DATOS Y SESIÓN
 include '../includes/conexion.php';
 session_start(); 
+
+$cliente_logueado = isset($_SESSION['cliente_id']);
+$nombre_cliente = $cliente_logueado ? explode(' ', $_SESSION['cliente_nombre'])[0] : '';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
@@ -10,7 +13,7 @@ try {
     die("Error de conexión: " . $e->getMessage());
 }
 
-// 3. PROCESAR FILTROS DE BÚSQUEDA
+// 2. PROCESAR FILTROS DE BÚSQUEDA
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $categoria = isset($_GET['categoria']) ? trim($_GET['categoria']) : '';
 
@@ -47,7 +50,27 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* --- MODAL Y TIMELINE --- */
+        /* Ajustes para que el NAV sea flexible y no se amontone */
+        .nav-flex { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .nav-right { display: flex; align-items: center; gap: 12px; }
+        
+        /* Botón de usuario / Mi Cuenta */
+        .btn-user-nav { 
+            background: rgba(255,255,255,0.1); 
+            color: white; 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+            text-decoration: none; 
+            font-size: 0.85rem; 
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-user-nav:hover { background: rgba(255,255,255,0.2); }
+
+        /* Modal y Timeline */
         .modal-rastreo { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
         .modal-content { background: white; width: 90%; max-width: 450px; margin: 8% auto; padding: 30px; border-radius: 15px; position: relative; font-family: 'Inter', sans-serif; }
         .close-btn { position: absolute; right: 20px; top: 15px; cursor: pointer; font-size: 1.5rem; color: #a0aec0; }
@@ -59,8 +82,8 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
         .step.active { color: #2d3748; font-weight: 700; }
         .step.active i { color: #38a169; }
 
-        @media (max-width: 480px) {
-            .btn-rastreo-nav span { display: none; } /* Oculta texto en móvil para espacio */
+        @media (max-width: 600px) {
+            .btn-rastreo-nav span, .btn-user-nav span { display: none; } /* En móvil solo iconos */
         }
     </style>
 </head>
@@ -68,14 +91,23 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
     <div class="nav">
         <div class="container nav-flex">
             <div>
-                <a href="/">← Volver</a>
-                <span style="margin-left: 10px; font-weight: 700;">Catálogo</span>
+                <a href="/">← <span>Volver</span></a>
             </div>
             
             <div class="nav-right">
                 <button class="btn-rastreo-nav" onclick="mostrarModalRastreo()">
-                    <i class="fas fa-truck"></i> <span>Rastrear Pedido</span>
+                    <i class="fas fa-truck"></i> <span>Rastrear</span>
                 </button>
+
+                <?php if ($cliente_logueado): ?>
+                    <a href="ver_carrito.php" class="btn-user-nav">
+                        <i class="fas fa-user-circle"></i> <span>Hola, <?php echo $nombre_cliente; ?></span>
+                    </a>
+                <?php else: ?>
+                    <a href="ver_carrito.php" class="btn-user-nav">
+                        <i class="fas fa-sign-in-alt"></i> <span>Entrar</span>
+                    </a>
+                <?php endif; ?>
 
                 <a href="ver_carrito.php" class="carrito-link">
                     <i class="fas fa-shopping-cart"></i>
