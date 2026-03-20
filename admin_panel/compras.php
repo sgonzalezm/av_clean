@@ -3,19 +3,26 @@ require_once '../includes/session.php';
 require_once '../includes/conexion.php';
 verificarSesion();
 
-// Aquí podrías agregar consultas rápidas para mostrar números en las tarjetas si quisieras, 
-// por ejemplo: contar órdenes pendientes.
+/**
+ * Consultas rápidas para Mini-Métricas (Opcional)
+ * Esto le da vida al Hub mostrando alertas inmediatas.
+ */
+// 1. Contar insumos con bajo stock (menor a 5 unidades por ejemplo)
+$bajo_stock = $pdo->query("SELECT COUNT(*) FROM insumos WHERE stock_actual < 5")->fetchColumn();
+
+// 2. Contar órdenes de compra pendientes
+// $pendientes = $pdo->query("SELECT COUNT(*) FROM ordenes_compra WHERE estado = 'pendiente'")->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>Gestión de Compras | AHD Clean</title>
+    <title>Gestión de Operaciones | AHD Clean</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
     <style>
-        /* Estilos específicos para el menú de tarjetas */
+        /* Estilos del Hub de Tarjetas */
         .metricas-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -36,31 +43,54 @@ verificarSesion();
             height: 100%;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
         }
         .card.clickable:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             border-color: #4299e1;
         }
+        .card h3 {
+            margin: 10px 0 5px 0;
+            font-size: 1.25rem;
+            color: #2d3748;
+        }
+        .card p {
+            color: #718096;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
         .btn-editar-mini {
             margin-top: auto;
             color: #3182ce;
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             display: flex;
             align-items: center;
             gap: 5px;
+        }
+        /* Badge de alerta para stock bajo */
+        .badge-alerta {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f56565;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
         }
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 30px;
-            flex-wrap: wrap;
             gap: 20px;
         }
-        .btn {
+        .btn-principal {
             background: #3182ce;
             color: white;
             padding: 12px 24px;
@@ -70,10 +100,6 @@ verificarSesion();
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            transition: background 0.2s;
-        }
-        .btn:hover {
-            background: #2b6cb0;
         }
     </style>
 </head>
@@ -87,23 +113,54 @@ verificarSesion();
     <div class="main">
         <div class="header">
             <div>
-                <h1><i class="fas fa-shopping-cart"></i> Gestión de Compras</h1>
-                <p style="color: #718096; font-size: 0.9rem;">Adquisiciones, proveedores y control de stock entrante.</p>
+                <h1><i class="fas fa-industry"></i> Operaciones y Suministros</h1>
+                <p style="color: #718096;">Centro de control para fabricación, insumos y compras de AHD Clean.</p>
             </div>
             <div class="header-actions">
-                <a href="nueva_compra.php" class="btn">
-                    <i class="fas fa-plus"></i> Registrar Compra
+                <a href="nueva_compra.php" class="btn-principal">
+                    <i class="fas fa-cart-plus"></i> Registrar Compra
                 </a>
             </div>
         </div>
 
         <div class="metricas-grid">
+            
+            <a href="insumos.php" class="card-link">
+                <div class="card clickable">
+                    <?php if($bajo_stock > 0): ?>
+                        <span class="badge-alerta"><?php echo $bajo_stock; ?> críticos</span>
+                    <?php endif; ?>
+                    <i class="fas fa-flask fa-2x" style="color: #9f7aea;"></i>
+                    <h3>Materias Primas</h3>
+                    <p>Gestión de químicos, envases y fragancias. Control de stock mínimo para producción.</p>
+                    <span class="btn-editar-mini">Inventario Insumos <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+
+            <a href="formulas.php" class="card-link">
+                <div class="card clickable">
+                    <i class="fas fa-microscope fa-2x" style="color: #38b2ac;"></i>
+                    <h3>Fórmulas / Recetario</h3>
+                    <p>Configuración de ingredientes y proporciones por litro para cada producto.</p>
+                    <span class="btn-editar-mini">Ver Fórmulas <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+
+            <a href="produccion_lotes.php" class="card-link">
+                <div class="card clickable" style="border-top: 4px solid #2d3748;">
+                    <i class="fas fa-layer-group fa-2x" style="color: #2d3748;"></i>
+                    <h3>Lotes de Fabricación</h3>
+                    <p>Consolidar producción, calcular explosión de materiales y descargar inventarios.</p>
+                    <span class="btn-editar-mini">Planear Producción <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+
             <a href="proveedores.php" class="card-link">
                 <div class="card clickable">
-                    <i class="fas fa-truck-loading fa-2x" style="color: #4299e1;"></i>
+                    <i class="fas fa-truck-moving fa-2x" style="color: #4299e1;"></i>
                     <h3>Proveedores</h3>
-                    <p>Directorio de fabricantes de químicos, envases y materia prima.</p>
-                    <span class="btn-editar-mini">Gestionar <i class="fas fa-chevron-right"></i></span>
+                    <p>Directorio de contactos, tiempos de entrega y listas de precios de fábrica.</p>
+                    <span class="btn-editar-mini">Ver Directorio <i class="fas fa-arrow-right"></i></span>
                 </div>
             </a>
 
@@ -111,8 +168,8 @@ verificarSesion();
                 <div class="card clickable">
                     <i class="fas fa-file-invoice-dollar fa-2x" style="color: #48bb78;"></i>
                     <h3>Órdenes de Compra</h3>
-                    <p>Historial de pedidos realizados y estados de pago.</p>
-                    <span class="btn-editar-mini">Ver historial <i class="fas fa-chevron-right"></i></span>
+                    <p>Seguimiento de pedidos realizados, estados de pago y recepciones pendientes.</p>
+                    <span class="btn-editar-mini">Historial de Compras <i class="fas fa-arrow-right"></i></span>
                 </div>
             </a>
 
@@ -120,20 +177,12 @@ verificarSesion();
                 <div class="card clickable">
                     <i class="fas fa-boxes fa-2x" style="color: #ed8936;"></i>
                     <h3>Entrada de Almacén</h3>
-                    <p>Validar productos recibidos para actualizar el stock automáticamente.</p>
-                    <span class="btn-editar-mini">Cargar stock <i class="fas fa-chevron-right"></i></span>
+                    <p>Recepción física de mercancía para actualización automática de existencias.</p>
+                    <span class="btn-editar-mini">Cargar Stock <i class="fas fa-arrow-right"></i></span>
                 </div>
             </a>
 
-            <div class="card" style="opacity: 0.6; cursor: not-allowed; background: #f7fafc; padding: 30px; border-radius: 12px; border: 1px dotted #cbd5e1;">
-                <i class="fas fa-receipt fa-2x" style="color: #a0aec0;"></i>
-                <h3>Gastos Fijos</h3>
-                <p>Próximamente: Registro de renta, servicios y nómina operativa.</p>
-            </div>
-        </div>
-    </div>
-
-    <script src="../js/admin.js"></script>
+        </div> </div> <script src="../js/admin.js"></script>
     <script>
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('active');
