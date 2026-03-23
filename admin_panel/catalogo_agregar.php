@@ -9,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $precio = $_POST['precio'] ?? 0;
     $imagen_url = $_POST['imagen_archivo'] ?? '';
     $categoria = $_POST['categoria'] ?? '';
+    $formula = $_POST['formula'] ?? 0;
 
     if (isset($_FILES['imagen_archivo']) && $_FILES['imagen_archivo']['error'] === UPLOAD_ERR_OK) {
         $ruta_destino = '../img/';
@@ -36,10 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     // Lógica básica para evitar el error si la tabla productos requiere imagen_url
-    $stmt = $pdo->prepare("INSERT INTO productos (nombre, descripcion, precio, imagen_url, categoria) VALUES (?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO productos (nombre, descripcion, precio, imagen_url, categoria, id_formula_maestra) VALUES (?, ?, ?, ?, ?, ?)");
     
     try {
-        if ($stmt->execute([$nombre, $descripcion, $precio, $imagen_url, $categoria])) {
+        if ($stmt->execute([$nombre, $descripcion, $precio, $imagen_url, $categoria, $formula])) {
             header('Location: catalogo_productos.php?ok=1');
             exit;
         } else {
@@ -58,6 +59,16 @@ try {
     $categorias_db = [];
     $error = "Error al cargar categorías: " . $e->getMessage();
 }
+
+// Obtener fórmulas maestras para el dropdown
+try {
+    $stmt_formulas = $pdo->query("SELECT id, nombre_formula FROM formulas_maestras ORDER BY nombre_formula ASC");
+    $formulas_db = $stmt_formulas->fetchAll();
+} catch (PDOException $e) {
+    $formulas_db = [];
+    $error = "Error al cargar fórmulas maestras: " . $e->getMessage();
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -120,6 +131,18 @@ try {
                         <?php foreach ($categorias_db as $cat): ?>
                             <option value="<?php echo htmlspecialchars($cat['nombre']); ?>">
                                 <?php echo htmlspecialchars($cat['nombre']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="formula"><i class="fas fa-folder"></i> Fórmula</label>
+                    <select id="formula" name="formula" class="form-control" required>
+                        <option value="">Seleccionar fórmula</option>
+                        <?php foreach ($formulas_db as $form): ?>
+                            <option value="<?php echo htmlspecialchars($form['id']); ?>">
+                                <?php echo htmlspecialchars($form['nombre_formula']); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

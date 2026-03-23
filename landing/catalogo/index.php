@@ -193,6 +193,56 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
         </div>
     </div>
 
+    <div id="ahd-chat-btn" onclick="toggleChat()" style="position:fixed; bottom:20px; right:20px; background:#2b6cb0; color:white; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.3); z-index:9999;">
+            <i class="fas fa-comment-dots" style="font-size:24px;"></i>
+        </div>
+
+        <div id="ahd-chat-window" style="display:none; position:fixed; bottom:90px; right:20px; width:350px; height:450px; background:white; border-radius:15px; box-shadow:0 5px 20px rgba(0,0,0,0.2); flex-direction:column; overflow:hidden; z-index:9999; border: 1px solid #eee;">
+            <div style="background:#2b6cb0; color:white; padding:15px; font-weight:bold; display:flex; justify-content:space-between;">
+                <span>Asistente AHD Clean</span>
+                <span onclick="toggleChat()" style="cursor:pointer;">&times;</span>
+            </div>
+            <div id="chat-messages" style="flex:1; padding:15px; overflow-y:auto; font-size:14px; display:flex; flex-direction:column; gap:10px;">
+                <div style="background:#f1f5f9; padding:10px; border-radius:10px; align-self:flex-start;">¡Hola! Soy tu asesor experto. ¿Qué necesitas limpiar hoy?</div>
+            </div>
+            <div style="padding:10px; border-top:1px solid #eee; display:flex; gap:5px;">
+                <input type="text" id="user-input" placeholder="Pregunta algo..." style="flex:1; border:1px solid #ddd; padding:8px; border-radius:5px; outline:none;">
+                <button onclick="sendMessage()" style="background:#2b6cb0; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+
+        <script>
+        function toggleChat() {
+            const win = document.getElementById('ahd-chat-window');
+            win.style.display = (win.style.display === 'none' || win.style.display === '') ? 'flex' : 'none';
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const container = document.getElementById('chat-messages');
+            if(!input.value) return;
+
+            // Mensaje Usuario
+            container.innerHTML += `<div style="background:#e2e8f0; padding:10px; border-radius:10px; align-self:flex-end;">${input.value}</div>`;
+            const userMsg = input.value;
+            input.value = '';
+
+            // Llamada a tu PHP en Hostinger
+            try {
+                const response = await fetch('api_asistente_cliente.php', {
+                    method: 'POST',
+                    body: JSON.stringify({ mensaje: userMsg }),
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const data = await response.json();
+                container.innerHTML += `<div style="background:#f1f5f9; padding:10px; border-radius:10px; align-self:flex-start;">${data.respuesta}</div>`;
+                container.scrollTop = container.scrollHeight;
+            } catch(e) {
+                container.innerHTML += `<div style="color:red; font-size:10px;">Error de conexión.</div>`;
+            }
+        }
+        </script>
+
     <script>
     function mostrarModalRastreo() { document.getElementById('modalRastreo').style.display = 'block'; }
     function cerrarModalRastreo() { 
