@@ -96,7 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['calcular'])) {
 }
 
 // 4. CONFIRMACIÓN Y REGISTRO (CORREGIDO)
-// 4. CONFIRMACIÓN Y REGISTRO (CON RASTREO DE ERRORES)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'])) {
     $reporte_confirmado = $_SESSION['ultimo_reporte_ahd'] ?? [];
     $lotes_confirmados = $_SESSION['ultimo_calculo_lotes'] ?? [];
@@ -106,47 +105,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
     } else {
         try {
             $pdo->beginTransaction();
-            
             $total_inversion = 0;
             foreach($reporte_confirmado as $r) { $total_inversion += $r['costo_final']; }
 
-            // 1. Insertar Cabecera
-            $stmt_o = $pdo->prepare("INSERT INTO ordenes_produccion (costo_total_insumos, observaciones) VALUES (?, ?)");
-            $stmt_o->execute([$total_inversion, "Registro con diagnóstico activo"]);
+            // CORRECCIÓN: Usamos 3 marcadores (?) para 3 valores
+            $sql_o = "INSERT INTO ordenes_produccion (costo_total_insumos, observaciones, estado) VALUES (?, ?, ?)";
+            $stmt_o = $pdo->prepare($sql_o);
+            $stmt_o->execute([
+                $total_inversion, 
+                "Planificación de lote: Esperando insumos", 
+                'PENDIENTE'
+            ]);
             $id_orden = $pdo->lastInsertId();
 
-            // 2. Detalle de Productos
+            // Detalle de Productos
             $stmt_dp = $pdo->prepare("INSERT INTO orden_detalle_productos (id_orden, id_producto, cantidad_litros) VALUES (?, ?, ?)");
             foreach ($lotes_confirmados as $pid => $lts) {
                 if ($lts > 0) $stmt_dp->execute([$id_orden, $pid, $lts]);
             }
 
-            // 3. Detalle de Insumos e Intento de Update
+            // Detalle de Insumos (Planificación de necesidad)
             $stmt_di = $pdo->prepare("INSERT INTO orden_detalle_insumos (id_orden, id_insumo, cantidad_usada, precio_al_momento) VALUES (?, ?, ?, ?)");
-            $stmt_st = $pdo->prepare("UPDATE insumos SET stock_actual = stock_actual - ? WHERE id = ?");
 
             foreach ($reporte_confirmado as $ins) {
-                // Registro del detalle
-                $stmt_di->execute([$id_orden, $ins['id_insumo'], $ins['total_compra'], $ins['precio_aplicado_u']]);
-                
-                // Intento de Update de Stock
-                $ejecutado = $stmt_st->execute([$ins['cantidad_neta'], $ins['id_insumo']]);
-                
-                // VERIFICACIÓN CRÍTICA: ¿Se movió alguna fila?
-                if ($stmt_st->rowCount() == 0) {
-                    // Si llega aquí, es que el ID no existe o el valor no cambió
-                    throw new Exception("No se pudo actualizar el stock del insumo ID: " . $ins['id_insumo'] . " (Nombre: " . $ins['nombre'] . "). Revisa si el ID es correcto en la tabla insumos.");
-                }
+                $stmt_di->execute([
+                    $id_orden, 
+                    $ins['id_insumo'], 
+                    $ins['total_compra'], 
+                    $ins['precio_aplicado_u']
+                ]);
             }
 
             $pdo->commit();
-            $mensaje_exito = "¡Éxito! Producción #$id_orden guardada y stock actualizado.";
+            $mensaje_exito = "¡Orden de Planificación #$id_orden generada! Los insumos han sido enviados a Compras Pendientes.";
             unset($_SESSION['ultimo_reporte_ahd']);
             $reporte = [];
 
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            $error = "DETALLE DEL ERROR: " . $e->getMessage();
+            $error = "Error: " . $e->getMessage();
         }
     }
 }
@@ -254,7 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
 
             <form method="POST">
                 <button type="submit" name="confirmar_fabricacion" class="btn" style="background:#2b6cb0; width:100%; padding:18px; font-weight:bold; font-size:1.1rem; margin-top:15px;">
-                    <i class="fas fa-check-double"></i> CONFIRMAR Y AJUSTAR INVENTARIO
+                    <i class="fas fa-check-double"></i> CONFIRMAR PLANIFICACIÓN
                 </button>
             </form>
         </div>
