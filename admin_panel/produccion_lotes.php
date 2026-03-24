@@ -10,7 +10,7 @@ $reporte = [];
 // 1. OBTENER PRODUCTOS CON FÓRMULA ASIGNADA
 $productos = $pdo->query("SELECT id, nombre, id_formula_maestra FROM productos WHERE id_formula_maestra IS NOT NULL ORDER BY nombre ASC")->fetchAll();
 
-// 2. LÓGICA DE CÁLCULO (Explosión de Materiales)
+// 2. LÓGICA DE CÁLCULO (EXPLOSIÓN + PRESENTACIONES + PRECIOS VOLUMEN)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['calcular'])) {
     $lotes = $_POST['lote']; 
     $insumos_necesarios = [];
@@ -29,86 +29,124 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['calcular'])) {
             $componentes = $stmt->fetchAll();
 
             foreach ($componentes as $c) {
-                $total_item = $c['cantidad_por_litro'] * $litros;
                 $id_insumo = $c['insumo_id'];
+                $cantidad_neta_item = $c['cantidad_por_litro'] * $litros;
 
                 if (!isset($insumos_necesarios[$id_insumo])) {
                     $insumos_necesarios[$id_insumo] = [
                         'id_insumo' => $id_insumo,
                         'nombre' => $c['insumo'],
-                        'cantidad_requerida' => 0,
                         'unidad' => $c['unidad_medida'],
-                        'costo_estimado' => 0,
-                        'precio_u' => $c['precio_unitario']
+                        'cantidad_neta' => 0,
+                        'total_compra' => 0,
+                        'sobrante' => 0,
+                        'precio_base_u' => $c['precio_unitario'],
+                        'precio_aplicado_u' => 0,
+                        'costo_final' => 0,
+                        'ahorro' => 0
                     ];
                 }
-                $insumos_necesarios[$id_insumo]['cantidad_requerida'] += $total_item;
-                $insumos_necesarios[$id_insumo]['costo_estimado'] += ($total_item * $c['precio_unitario']);
+                $insumos_necesarios[$id_insumo]['cantidad_neta'] += $cantidad_neta_item;
             }
         }
     }
+
+    foreach ($insumos_necesarios as $id => &$item) {
+        $cantidad_neta = $item['cantidad_neta'];
+        $stmt_pres = $pdo->prepare("SELECT cantidad_capacidad, precio_presentacion FROM insumo_presentaciones WHERE id_insumo = ? ORDER BY cantidad_capacidad ASC");
+        $stmt_pres->execute([$id]);
+        $presentaciones = $stmt_pres->fetchAll(PDO::FETCH_ASSOC);
+
+        $mejor_opcion = null;
+        $precio_prorrateado = $item['precio_base_u'];
+
+        if (!empty($presentaciones)) {
+            foreach ($presentaciones as $p) {
+                if ($p['cantidad_capacidad'] >= $cantidad_neta) {
+                    $mejor_opcion = $p['cantidad_capacidad'];
+                    if ($p['precio_presentacion'] > 0) {
+                        $precio_prorrateado = $p['precio_presentacion'] / $p['cantidad_capacidad'];
+                    }
+                    break;
+                }
+            }
+            if ($mejor_opcion === null) {
+                $max_p = end($presentaciones);
+                $unidades = ceil($cantidad_neta / $max_p['cantidad_capacidad']);
+                $mejor_opcion = $unidades * $max_p['cantidad_capacidad'];
+                if ($max_p['precio_presentacion'] > 0) {
+                    $precio_prorrateado = $max_p['precio_presentacion'] / $max_p['cantidad_capacidad'];
+                }
+            }
+            $item['total_compra'] = $mejor_opcion;
+        } else {
+            $item['total_compra'] = $cantidad_neta;
+        }
+
+        $item['precio_aplicado_u'] = $precio_prorrateado;
+        $item['sobrante'] = $item['total_compra'] - $cantidad_neta;
+        $item['costo_final'] = $item['total_compra'] * $precio_prorrateado;
+        $costo_teorico = $item['total_compra'] * $item['precio_base_u'];
+        $item['ahorro'] = $costo_teorico - $item['costo_final'];
+    }
+
     $reporte = $insumos_necesarios;
     $_SESSION['ultimo_reporte_ahd'] = $reporte;
     $_SESSION['ultimo_calculo_lotes'] = $lotes;
 }
 
-// 3. CONFIRMACIÓN Y REGISTRO NORMALIZADO EN BD
+// 4. CONFIRMACIÓN Y REGISTRO (CORREGIDO)
+// 4. CONFIRMACIÓN Y REGISTRO (CON RASTREO DE ERRORES)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'])) {
-    $lotes_a_fabricar = $_SESSION['ultimo_calculo_lotes'] ?? [];
-    $reporte_actual = $_SESSION['ultimo_reporte_ahd'] ?? [];
+    $reporte_confirmado = $_SESSION['ultimo_reporte_ahd'] ?? [];
+    $lotes_confirmados = $_SESSION['ultimo_calculo_lotes'] ?? [];
     
-    if (empty($reporte_actual)) {
-        $error = "No hay datos para procesar. Realice el cálculo primero.";
+    if (empty($reporte_confirmado)) {
+        $error = "Error: El reporte está vacío en la sesión.";
     } else {
         try {
             $pdo->beginTransaction();
             
-            $total_final = 0;
-            foreach($reporte_actual as $item) { $total_final += $item['costo_estimado']; }
+            $total_inversion = 0;
+            foreach($reporte_confirmado as $r) { $total_inversion += $r['costo_final']; }
 
-            // A. INSERTAR CABECERA (ordenes_produccion)
-            $sql_orden = "INSERT INTO ordenes_produccion (costo_total_insumos, observaciones) VALUES (?, ?)";
-            $stmt_orden = $pdo->prepare($sql_orden);
-            $stmt_orden->execute([$total_final, "Producción generada desde el panel de lotes"]);
+            // 1. Insertar Cabecera
+            $stmt_o = $pdo->prepare("INSERT INTO ordenes_produccion (costo_total_insumos, observaciones) VALUES (?, ?)");
+            $stmt_o->execute([$total_inversion, "Registro con diagnóstico activo"]);
             $id_orden = $pdo->lastInsertId();
 
-            // B. INSERTAR DETALLE DE PRODUCTOS (orden_detalle_productos)
-            $sql_det_prod = "INSERT INTO orden_detalle_productos (id_orden, id_producto, cantidad_litros) VALUES (?, ?, ?)";
-            $stmt_det_prod = $pdo->prepare($sql_det_prod);
-            foreach ($lotes_a_fabricar as $prod_id => $litros) {
-                if ($litros > 0) {
-                    $stmt_det_prod->execute([$id_orden, $prod_id, $litros]);
+            // 2. Detalle de Productos
+            $stmt_dp = $pdo->prepare("INSERT INTO orden_detalle_productos (id_orden, id_producto, cantidad_litros) VALUES (?, ?, ?)");
+            foreach ($lotes_confirmados as $pid => $lts) {
+                if ($lts > 0) $stmt_dp->execute([$id_orden, $pid, $lts]);
+            }
+
+            // 3. Detalle de Insumos e Intento de Update
+            $stmt_di = $pdo->prepare("INSERT INTO orden_detalle_insumos (id_orden, id_insumo, cantidad_usada, precio_al_momento) VALUES (?, ?, ?, ?)");
+            $stmt_st = $pdo->prepare("UPDATE insumos SET stock_actual = stock_actual - ? WHERE id = ?");
+
+            foreach ($reporte_confirmado as $ins) {
+                // Registro del detalle
+                $stmt_di->execute([$id_orden, $ins['id_insumo'], $ins['total_compra'], $ins['precio_aplicado_u']]);
+                
+                // Intento de Update de Stock
+                $ejecutado = $stmt_st->execute([$ins['cantidad_neta'], $ins['id_insumo']]);
+                
+                // VERIFICACIÓN CRÍTICA: ¿Se movió alguna fila?
+                if ($stmt_st->rowCount() == 0) {
+                    // Si llega aquí, es que el ID no existe o el valor no cambió
+                    throw new Exception("No se pudo actualizar el stock del insumo ID: " . $ins['id_insumo'] . " (Nombre: " . $ins['nombre'] . "). Revisa si el ID es correcto en la tabla insumos.");
                 }
             }
 
-            // C. INSERTAR DETALLE DE INSUMOS Y DESCONTAR STOCK (orden_detalle_insumos)
-            $sql_det_ins = "INSERT INTO orden_detalle_insumos (id_orden, id_insumo, cantidad_usada, precio_al_momento) VALUES (?, ?, ?, ?)";
-            $stmt_det_ins = $pdo->prepare($sql_det_ins);
-            
-            $sql_update_stock = "UPDATE insumos SET stock_actual = stock_actual - ? WHERE id = ?";
-            $stmt_update_stock = $pdo->prepare($sql_update_stock);
-
-            foreach ($reporte_actual as $insumo) {
-                // Guardar en detalle de la orden
-                $stmt_det_ins->execute([
-                    $id_orden, 
-                    $insumo['id_insumo'], 
-                    $insumo['cantidad_requerida'], 
-                    $insumo['precio_u']
-                ]);
-
-                // Actualizar inventario físico
-                $stmt_update_stock->execute([$insumo['cantidad_requerida'], $insumo['id_insumo']]);
-            }
-
             $pdo->commit();
-            $mensaje_exito = "¡Orden #$id_orden registrada exitosamente! Stock actualizado y detalles guardados.";
+            $mensaje_exito = "¡Éxito! Producción #$id_orden guardada y stock actualizado.";
             unset($_SESSION['ultimo_reporte_ahd']);
-            unset($_SESSION['ultimo_calculo_lotes']);
             $reporte = [];
+
         } catch (Exception $e) {
-            $pdo->rollBack();
-            $error = "Fallo en el registro: " . $e->getMessage();
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            $error = "DETALLE DEL ERROR: " . $e->getMessage();
         }
     }
 }
@@ -117,55 +155,53 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Producción | AHD Clean</title>
+    <title>Producción Lotes | AHD Clean</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
     <style>
         .main { padding: 20px; }
-        .card-resumen { background: #fff; border-radius: 12px; padding: 25px; margin-top: 30px; border-top: 5px solid #2b6cb0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .btn-pdf { background: #e53e3e; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; display: inline-block; margin-bottom: 15px; font-size: 0.9rem; }
+        .card-resumen { background: #fff; border-radius: 12px; padding: 25px; margin-top: 30px; border-top: 5px solid #2b6cb0; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .btn-pdf { background: #e53e3e; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
-        th { background: #f8fafc; color: #4a5568; }
-        .alerta-exito { background: #f0fff4; color: #2f855a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #c6f6d5; }
-        .alerta-error { background: #fff5f5; color: #c53030; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fed7d7; }
+        th, td { padding: 12px; border-bottom: 1px solid #edf2f7; text-align: left; }
+        .badge-ahorro { background: #f0fff4; color: #2f855a; padding: 3px 8px; border-radius: 5px; font-size: 0.8rem; font-weight: bold; border: 1px solid #c6f6d5; }
+        .badge-compra { background: #ebf8ff; color: #2b6cb0; padding: 3px 8px; border-radius: 5px; font-weight: bold; }
+        .text-sobrante { color: #a0aec0; font-size: 0.8rem; font-style: italic; }
     </style>
 </head>
 <body>
     <?php include 'sidebar.php'; ?>
-    
     <div class="main">
-        <h1><i class="fas fa-industry"></i> Gestión de Producción</h1>
-        <hr style="margin-bottom: 25px; border: 0; border-top: 1px solid #e2e8f0;">
-        
+        <h1><i class="fas fa-boxes-packing"></i> Producción Inteligente</h1>
+
         <?php if($mensaje_exito): ?>
-            <div class="alerta-exito"><i class="fas fa-check-circle"></i> <?php echo $mensaje_exito; ?></div>
+            <div style="background:#c6f6d5; color:#22543d; padding:15px; border-radius:8px; margin-bottom:20px;">
+                <i class="fas fa-check-circle"></i> <?php echo $mensaje_exito; ?>
+            </div>
         <?php endif; ?>
 
         <?php if($error): ?>
-            <div class="alerta-error"><i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?></div>
+            <div style="background:#fed7d7; color:#822727; padding:15px; border-radius:8px; margin-bottom:20px;">
+                <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
+            </div>
         <?php endif; ?>
 
-        <div class="card" style="background:white; padding:25px; border-radius:10px; border: 1px solid #e2e8f0;">
+        <div class="card" style="background:white; padding:25px; border-radius:12px; border: 1px solid #e2e8f0;">
             <form method="POST">
-                <h3 style="margin-top:0;"><i class="fas fa-list-ol"></i> Planificar Lotes</h3>
-                <p style="color: #718096; font-size: 0.9rem;">Indica los litros totales a fabricar para cada producto.</p>
-                
+                <h3><i class="fas fa-calculator"></i> Planificar Lotes</h3>
                 <div style="margin-top:20px;">
                     <?php foreach($productos as $p): ?>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding: 10px; border-bottom: 1px solid #f7fafc;">
-                        <span style="font-weight: 500;"><?php echo htmlspecialchars($p['nombre']); ?></span>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <input type="number" name="lote[<?php echo $p['id']; ?>]" placeholder="0" step="0.1" min="0" 
-                                   style="width:100px; padding:8px; border:1px solid #cbd5e0; border-radius:6px; text-align:right;">
-                            <span style="color: #a0aec0; font-size: 0.8rem;">LTS</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #f7fafc; padding-bottom:10px;">
+                        <span><?php echo htmlspecialchars($p['nombre']); ?></span>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <input type="number" name="lote[<?php echo $p['id']; ?>]" placeholder="0" step="0.1" min="0" style="width:110px; padding:8px; border-radius:5px; border:1px solid #ddd;">
+                            <span style="color:#718096; font-size:0.9rem;">Litros</span>
                         </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
-                
-                <button type="submit" name="calcular" class="btn" style="width:100%; margin-top:20px; background: #4c51bf;">
-                    <i class="fas fa-calculator"></i> Calcular Necesidades de Insumos
+                <button type="submit" name="calcular" class="btn" style="width:100%; background:#4c51bf; padding:15px; font-weight:bold;">
+                    <i class="fas fa-sync-alt"></i> Calcular Costos y Sobrantes
                 </button>
             </form>
         </div>
@@ -173,44 +209,56 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
         <?php if (!empty($reporte)): ?>
         <div class="card-resumen">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0;"><i class="fas fa-vial"></i> Explosión de Materiales</h3>
-                <a href="generar_pdf_lote.php" target="_blank" class="btn-pdf">
-                    <i class="fas fa-file-pdf"></i> Hoja de Pesado (Imprimir)
-                </a>
+                <h3><i class="fas fa-file-invoice-dollar"></i> Reporte con Reintegración</h3>
+                <a href="generar_pdf_lote.php" target="_blank" class="btn-pdf"><i class="fas fa-print"></i> PDF de Pesado</a>
             </div>
             
             <table>
                 <thead>
                     <tr>
-                        <th>Materia Prima</th>
-                        <th style="text-align:center;">Cantidad Requerida</th>
-                        <th style="text-align:right;">Costo Estimado</th>
+                        <th>Insumo</th>
+                        <th>Consumo Neto</th>
+                        <th>Presentación Usada</th>
+                        <th>Sobrante a Reintegrar</th>
+                        <th>Costo Final</th>
+                        <th>Ahorro</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php $total = 0; foreach($reporte as $item): $total += $item['costo_estimado']; ?>
+                    <?php $gran_total = 0; $gran_ahorro = 0; foreach($reporte as $item): 
+                        $gran_total += $item['costo_final']; 
+                        $gran_ahorro += $item['ahorro'];
+                    ?>
                     <tr>
                         <td><strong><?php echo htmlspecialchars($item['nombre']); ?></strong></td>
-                        <td style="text-align:center;"><?php echo number_format($item['cantidad_requerida'], 3); ?> <?php echo $item['unidad']; ?></td>
-                        <td style="text-align:right;">$<?php echo number_format($item['costo_estimado'], 2); ?></td>
+                        <td><?php echo number_format($item['cantidad_neta'], 3); ?> <small><?php echo $item['unidad']; ?></small></td>
+                        <td><span class="badge-compra"><?php echo number_format($item['total_compra'], 2); ?> <?php echo $item['unidad']; ?></span></td>
+                        <td class="text-sobrante">+<?php echo number_format($item['sobrante'], 3); ?> (vuelve a stock)</td>
+                        <td><strong>$<?php echo number_format($item['costo_final'], 2); ?></strong></td>
+                        <td>
+                            <?php if($item['ahorro'] > 0): ?>
+                                <span class="badge-ahorro">-$<?php echo number_format($item['ahorro'], 2); ?></span>
+                            <?php else: ?>
+                                <small style="color:#ccc;">-</small>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
             
-            <div style="text-align:right; margin-top:20px; padding-top:15px; border-top: 2px solid #f1f5f9;">
-                <span style="font-size: 1.1rem;">Inversión en Insumos: <strong>$<?php echo number_format($total, 2); ?></strong></span>
+            <div style="text-align:right; margin-top:25px; border-top:2px solid #edf2f7; padding-top:20px;">
+                <p style="color:#2f855a; font-weight:bold; margin:0;">Ahorro por Volumen: $<?php echo number_format($gran_ahorro, 2); ?></p>
+                <h2 style="margin:5px 0; color:#2d3748;">Inversión en Insumos: $<?php echo number_format($gran_total, 2); ?></h2>
             </div>
 
-            <form method="POST" style="margin-top:25px;">
-                <button type="submit" name="confirmar_fabricacion" class="btn" style="background:#2b6cb0; width:100%; color:white; padding:15px; font-weight:bold; font-size:1rem;">
-                    <i class="fas fa-check-double"></i> CONFIRMAR PRODUCCIÓN Y DESCONTAR STOCK
+            <form method="POST">
+                <button type="submit" name="confirmar_fabricacion" class="btn" style="background:#2b6cb0; width:100%; padding:18px; font-weight:bold; font-size:1.1rem; margin-top:15px;">
+                    <i class="fas fa-check-double"></i> CONFIRMAR Y AJUSTAR INVENTARIO
                 </button>
             </form>
         </div>
         <?php endif; ?>
     </div>
-
-    <script src="../js/admin.js"></script>
 </body>
 </html>

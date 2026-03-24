@@ -61,6 +61,12 @@ $costo_total_litro = 0;
         .text-success { color: #38a169; font-weight: bold; font-size: 1.2rem; }
         .form-control { width:100%; padding:10px; margin-bottom:15px; border: 1px solid #ccc; border-radius:5px; }
         
+        /* Ajuste para el encabezado con botón */
+        .card-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .card-header-flex h3 { margin: 0; }
+        .btn-mini { padding: 5px 10px; font-size: 0.8rem; background: #edf2f7; color: #4a5568; text-decoration: none; border-radius: 5px; border: 1px solid #cbd5e0; transition: 0.3s; }
+        .btn-mini:hover { background: #e2e8f0; color: #2d3748; }
+
         /* Estilos Buscador */
         .search-box { position: relative; margin-bottom: 10px; }
         .search-box input { padding-left: 35px; background: #f9fafb; }
@@ -82,8 +88,11 @@ $costo_total_litro = 0;
 
         <div class="grid-receta">
             <div class="card">
-                <h3><i class="fas fa-plus-circle"></i> Agregar Insumo</h3>
-                <hr style="margin: 15px 0;">
+                <div class="card-header-flex">
+                    <h3><i class="fas fa-plus-circle"></i> Agregar Insumo</h3>
+                    <a href="insumos.php" class="btn-mini"><i class="fas fa-external-link-alt"></i> Gestionar Insumos</a>
+                </div>
+                <hr style="margin-bottom: 15px; border: 0; border-top: 1px solid #eee;">
                 
                 <form method="POST">
                     <input type="hidden" name="agregar_insumo" value="1">
@@ -155,10 +164,8 @@ $costo_total_litro = 0;
     </div>
 
     <script>
-        // 1. Calcular costo total al cargar
         document.getElementById('total_display').innerText = '$<?php echo number_format($costo_total_litro, 2); ?>';
 
-        // 2. Filtrar el SELECT de insumos
         function filterOptions() {
             let input = document.getElementById('filterSelect').value.toLowerCase();
             let select = document.getElementById('insumoSelect');
@@ -170,7 +177,6 @@ $costo_total_litro = 0;
             }
         }
 
-        // 3. Filtrar los items de la TABLA
         function filterTableItems() {
             let input = document.getElementById('filterTable').value.toLowerCase();
             let rows = document.querySelectorAll('#recipeTable tbody tr');
