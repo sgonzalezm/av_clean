@@ -20,8 +20,8 @@ foreach($productos as $p) {
 }
 
 // 2. CONFIGURACIÓN DE GEMINI
-$apiKey = 'AIzaSyBhGrzi1MfgOVJz-7IV79qbFaK1DdAkdlw'; // Pega aquí tu llave de Google AI Studio
-$url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey;
+$apiKey = ''; // Pega aquí tu llave de Google AI Studio
+$url = "" . $apiKey;
 
 // Estructura de datos para Gemini
 $data = [
