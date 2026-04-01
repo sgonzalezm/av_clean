@@ -1,33 +1,113 @@
 <?php
-
-// Editar correo 
-// En caso de ser administrador que pueda subir de nivel de acceso a los usuarios, o eliminar usuarios
-// Agregar un bloque de "Notificaciones" para configurar alertas por email, etc.
-// Cambiar de status de pedido: pendiente, en proceso, enviado, entregado, cancelado. Agregar un bloque de "Pedidos" para gestionar esto.
-
-?>
-<?php
 require_once '../includes/session.php';
 require_once '../includes/conexion.php';
 verificarSesion();
 
+// Procesar Nueva Categoría
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['nueva_categoria'])) {
     $nombre_cat = $_POST['nombre_cat'];
-    $stmt = $pdo->prepare("INSERT INTO categorias (nombre) VALUES (?)"); // Asumiendo que tienes una tabla 'categorias'
+    $stmt = $pdo->prepare("INSERT INTO categorias (nombre) VALUES (?)");
     if ($stmt->execute([$nombre_cat])) {
         echo "<script>alert('Categoría agregada con éxito'); window.location.href='configuracion.php';</script>";
     }
 }
 
+// Aquí podrías procesar la configuración de correo/notificaciones en el futuro
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>Configuración General</title>
+    <title>Configuración | AHD Clean</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
+    <style>
+        :root {
+            --primary: #3182ce;
+            --success: #38a169;
+            --warning: #ecc94b;
+            --danger: #e53e3e;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --bg-card: #ffffff;
+        }
+
+        .section-title { 
+            margin: 30px 0 15px 0; 
+            font-size: 1.1rem; 
+            color: var(--text-muted); 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; }
+
+        .config-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+            gap: 20px; 
+        }
+
+        .card-config {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid #edf2f7;
+            transition: all 0.3s ease;
+            position: relative;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card-config:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary);
+        }
+
+        .icon-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        /* Colores de Iconos */
+        .bg-gold { background: #fefcbf; color: #b7791f; }
+        .bg-blue { background: #ebf8ff; color: #3182ce; }
+        .bg-green { background: #f0fff4; color: #38a169; }
+        .bg-purple { background: #faf5ff; color: #805ad5; }
+        .bg-orange { background: #fffaf0; color: #dd6b20; }
+
+        .card-config h3 { font-size: 1.15rem; color: var(--text-main); margin-bottom: 8px; }
+        .card-config p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px; }
+
+        .action-link { 
+            font-size: 0.85rem; 
+            font-weight: 700; 
+            color: var(--primary); 
+            display: flex; 
+            align-items: center; 
+            gap: 5px; 
+        }
+
+        /* Estilos del Modal Reutilizados y Mejorados */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); }
+        .modal-content { background: #fff; margin: 10% auto; padding: 30px; border-radius: 15px; width: 90%; max-width: 450px; animation: slideDown 0.4s ease; }
+        .form-control-modern { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; font-size: 1rem; }
+        .btn-full { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    </style>
 </head>
 <body>
     <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
@@ -35,98 +115,101 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['nueva_categoria'])) {
 
     <div class="main">
         <div class="header">
-            <h1><i class="fas fa-tools"></i> Panel de Configuración</h1>
+            <div>
+                <h1><i class="fas fa-cog"></i> Configuración General</h1>
+                <p style="color: var(--text-muted);">Ajusta los parámetros globales de AHD Clean.</p>
+            </div>
         </div>
 
-        <div class="metricas-grid">
-            <a href="niveles_ventas.php" class="card-link">
-                <div class="card clickable">
-                    <i class="fas fa-trophy fa-2x" style="color: #ecc94b;"></i>
+        <h2 class="section-title">Negocio y Ventas</h2>
+        <div class="config-grid">
+            <a href="niveles_ventas.php" class="card-config">
+                <div>
+                    <div class="icon-box bg-gold"><i class="fas fa-trophy"></i></div>
                     <h3>Metas y Niveles</h3>
-                    <p>Configura umbrales de Bronce, Plata, Oro y sus comisiones.</p>
-                    <span class="btn-editar-mini">Configurar <i class="fas fa-chevron-right"></i></span>
+                    <p>Umbrales de comisiones para Bronce, Plata y Oro según volumen de venta.</p>
                 </div>
-            </a>
-            <a href="usuarios.php" class="card-link">
-                <div class="card clickable">
-                    <i class="fas fa-users-cog fa-2x"></i>
-                    <h3>Roles de Usuario</h3>
-                    <p>Gestión de permisos y accesos al sistema.</p>
-                    <span class="btn-editar-mini">Configurar <i class="fas fa-chevron-right"></i></span>
-                </div>
-            </a>
-            <a href="perfil_impuestos.php" class="card-link">
-                <div class="card clickable">
-                    <i class="fas fa-file-invoice fa-2x"></i>
-                    <h3>Perfil de Impuestos</h3>
-                    <p>Configuración de RFC, sellos y folios.</p>
-                    <span class="btn-editar-mini">Configurar <i class="fas fa-chevron-right"></i></span>
-                </div>
+                <span class="action-link">Configurar Niveles <i class="fas fa-chevron-right"></i></span>
             </a>
 
-            <div class="card clickable" onclick="openModal()">
-            <i class="fas fa-folder-plus fa-2x" style="color: #48bb78;"></i>
-            <h3>Categorías</h3>
-            <p>Agrega nuevas categorías para organizar tus productos químicos.</p>
-            <span class="btn-editar-mini">Agregar Nueva <i class="fas fa-plus"></i></span>
+            <a href="perfil_impuestos.php" class="card-config">
+                <div>
+                    <div class="icon-box bg-purple"><i class="fas fa-file-invoice"></i></div>
+                    <h3>Perfil Fiscal</h3>
+                    <p>Configuración de RFC, razón social y datos para facturación electrónica.</p>
+                </div>
+                <span class="action-link">Editar Datos <i class="fas fa-chevron-right"></i></span>
+            </a>
+
+            <div class="card-config" onclick="openModal()" style="cursor: pointer;">
+                <div>
+                    <div class="icon-box bg-green"><i class="fas fa-tags"></i></div>
+                    <h3>Categorías</h3>
+                    <p>Organiza tus productos químicos (Desinfectantes, Limpieza Carrocería, etc).</p>
+                </div>
+                <span class="action-link">Añadir Categoría <i class="fas fa-plus"></i></span>
+            </div>
         </div>
 
-        <div id="modalCategoria" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2><i class="fas fa-tag"></i> Nueva Categoría</h2>
-                    <span class="close" onclick="closeModal()">&times;</span>
+        <h2 class="section-title">Seguridad y Accesos</h2>
+        <div class="config-grid">
+            <a href="usuarios.php" class="card-config">
+                <div>
+                    <div class="icon-box bg-blue"><i class="fas fa-user-shield"></i></div>
+                    <h3>Roles de Usuario</h3>
+                    <p>Administra quién puede ver costos de producción o editar fórmulas maestras.</p>
                 </div>
-                <form method="POST">
-                    <div class="form-group" style="padding: 20px 0;">
-                        <label>Nombre de la categoría:</label>
-                        <input type="text" name="nombre_cat" class="form-control" placeholder="Ej: Desinfectantes, Automotriz..." required style="width: 100%; padding: 10px; margin-top: 10px;">
-                    </div>
-                    <button type="submit" name="nueva_categoria" class="btn-guardar" style="width: 100%; background: #48bb78; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer;">
-                        <i class="fas fa-save"></i> Guardar Categoría
-                    </button>
-                </form>
-            </div>
-            </div>
+                <span class="action-link">Gestionar Staff <i class="fas fa-chevron-right"></i></span>
+            </a>
+        </div>
+
+        <h2 class="section-title">Comunicación y Alertas</h2>
+        <div class="config-grid">
+            <a href="configurar_correo.php" class="card-config">
+                <div>
+                    <div class="icon-box bg-orange"><i class="fas fa-envelope-open-text"></i></div>
+                    <h3>Servidor de Correo</h3>
+                    <p>Configura el SMTP para envío de facturas y órdenes de compra automáticas.</p>
+                </div>
+                <span class="action-link">Configurar SMTP <i class="fas fa-chevron-right"></i></span>
+            </a>
+
+            <a href="alertas_notificaciones.php" class="card-config">
+                <div>
+                    <div class="icon-box bg-red" style="background: #fff5f5; color: #e53e3e;"><i class="fas fa-bell"></i></div>
+                    <h3>Notificaciones</h3>
+                    <p>Alertas de stock bajo, pedidos nuevos o vencimientos de facturas.</p>
+                </div>
+                <span class="action-link">Gestionar Alertas <i class="fas fa-chevron-right"></i></span>
+            </a>
         </div>
     </div>
 
-    <style>
-        .card-link { text-decoration: none; color: inherit; display: block; }
-        .clickable:hover { transform: translateY(-5px); transition: 0.3s; border: 1px solid #4299e1; }
-        .btn-editar-mini { display: inline-block; margin-top: 15px; color: #4299e1; font-weight: bold; font-size: 0.9rem; }
-        .card h3 { margin: 15px 0 10px 0; }
-        .card p { font-size: 0.85rem; color: #718096; line-height: 1.4; }
+    <div id="modalCategoria" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-tag"></i> Nueva Categoría</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <form method="POST">
+                <div style="padding: 15px 0;">
+                    <label style="font-weight: bold; color: var(--text-main);">Nombre del grupo:</label>
+                    <input type="text" name="nombre_cat" class="form-control-modern" placeholder="Ej: Jabones Industriales" required>
+                </div>
+                <button type="submit" name="nueva_categoria" class="btn-full" style="background: var(--success); color: white;">
+                    <i class="fas fa-save"></i> Guardar Categoría
+                </button>
+            </form>
+        </div>
+    </div>
 
-        /* Estilos del Modal */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: #fff; margin: 10% auto; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); animation: slideDown 0.3s; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .close { font-size: 28px; font-weight: bold; cursor: pointer; color: #aaa; }
-        .close:hover { color: #000; }
-
-        @keyframes slideDown {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-    </style>
     <script>
-        function openModal() {
-            document.getElementById("modalCategoria").style.display = "block";
-        }
-
-        function closeModal() {
-            document.getElementById("modalCategoria").style.display = "none";
-        }
-
-        // Cerrar si el usuario hace clic fuera del contenido blanco
+        function openModal() { document.getElementById("modalCategoria").style.display = "block"; }
+        function closeModal() { document.getElementById("modalCategoria").style.display = "none"; }
         window.onclick = function(event) {
-            let modal = document.getElementById("modalCategoria");
-            if (event.target == modal) {
-                closeModal();
-            }
+            if (event.target == document.getElementById("modalCategoria")) closeModal();
         }
-        </script>
+    </script>
     <script src="../js/admin.js"></script>
 </body>
 </html>

@@ -12,7 +12,6 @@ if (isset($_GET['exportar']) && $_GET['exportar'] == 'excel' && isset($_GET['id'
     header("Pragma: no-cache");
     header("Expires: 0");
 
-    // Obtener Insumos con Proveedor
     $stmt_i = $pdo->prepare("
         SELECT odi.*, i.nombre, i.unidad_medida, prov.nombre_empresa as proveedor 
         FROM orden_detalle_insumos odi 
@@ -66,8 +65,10 @@ if (isset($_POST['recibir_insumos_orden'])) {
 $ordenes = $pdo->query("SELECT * FROM ordenes_produccion ORDER BY fecha_registro DESC")->fetchAll();
 $detalle_id = $_GET['ver'] ?? null;
 $insumos_detalle = [];
+$productos_detalle = [];
 
 if ($detalle_id) {
+    // Consulta de Insumos
     $stmt_i = $pdo->prepare("
         SELECT odi.*, i.nombre, i.unidad_medida, prov.nombre_empresa as proveedor 
         FROM orden_detalle_insumos odi 
@@ -78,6 +79,16 @@ if ($detalle_id) {
     ");
     $stmt_i->execute([$detalle_id]);
     $insumos_detalle = $stmt_i->fetchAll();
+
+    // Consulta de Productos
+    $stmt_p = $pdo->prepare("
+        SELECT odp.*, p.nombre 
+        FROM orden_detalle_productos odp 
+        JOIN productos p ON odp.id_producto = p.id 
+        WHERE odp.id_orden = ?
+    ");
+    $stmt_p->execute([$detalle_id]);
+    $productos_detalle = $stmt_p->fetchAll();
 }
 ?>
 <!DOCTYPE html>
@@ -94,15 +105,17 @@ if ($detalle_id) {
         .error { background: #fed7d7; color: #822727; border: 1px solid #e53e3e; }
         .badge { padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; }
         .badge-pendiente { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
-        .badge-surtido { background: #f0fff4; color: #2f855a; border: 1px solid #c6f6d5; }
+        .badge-surtido { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+        .badge-terminado { background: #f0fff4; color: #2f855a; border: 1px solid #c6f6d5; }
         .card-detalle { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 25px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .grid-detalle { display: grid; grid-template-columns: 1fr 1.5fr; gap: 25px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { text-align: left; background: #f8fafc; padding: 12px; font-size: 0.85rem; color: #64748b; border-bottom: 2px solid #edf2f7; }
         td { padding: 12px; border-bottom: 1px solid #edf2f7; font-size: 0.9rem; }
         .row-proveedor { background: #edf2f7; font-weight: bold; color: #4a5568; font-size: 0.8rem; }
         .btn-pdf-prov { background: #e53e3e; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; transition: 0.3s; }
-        .btn-pdf-prov:hover { background: #c53030; transform: translateY(-2px); }
         .btn-recibir { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+        .btn-finalizar { background: #38a169; color: white; padding: 6px 12px; border-radius: 5px; text-decoration: none; font-size: 0.8rem; font-weight: bold; display: inline-block; }
         .search-box { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-sizing: border-box; }
     </style>
 </head>
@@ -116,15 +129,15 @@ if ($detalle_id) {
         <?php if ($detalle_id): ?>
         <div class="card-detalle">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3><i class="fas fa-file-invoice"></i> Requisiciones de Orden #<?php echo $detalle_id; ?></h3>
-                <div style="display:flex; gap:10px;">
-                    <a href="?exportar=excel&id=<?php echo $detalle_id; ?>" style="background:#1d6f42; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:0.75rem; font-weight:bold;"><i class="fas fa-file-excel"></i> Excel Completo</a>
+                <h3><i class="fas fa-file-invoice"></i> Detalle de Orden #<?php echo $detalle_id; ?></h3>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <a href="?exportar=excel&id=<?php echo $detalle_id; ?>" style="background:#1d6f42; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:0.75rem; font-weight:bold;"><i class="fas fa-file-excel"></i> Excel</a>
+                    <a href="generar_pdf_produccion.php?id=<?php echo $detalle_id; ?>" target="_blank" style="background:#2b6cb0; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:0.75rem; font-weight:bold;"><i class="fas fa-industry"></i> PDF Producción</a>
                     <a href="historial_ordenes.php" style="color:#a0aec0; margin-left:10px;"><i class="fas fa-times-circle fa-lg"></i></a>
                 </div>
             </div>
 
-            <p style="font-size: 0.85rem; color:#718096; margin-bottom:10px;">Descargar PDF individual para enviar a cada proveedor:</p>
-            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:30px; padding:15px; background:#f8fafc; border-radius:8px;">
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; padding:15px; background:#f8fafc; border-radius:8px;">
                 <?php 
                 $prov_listados = [];
                 foreach($insumos_detalle as $ins) {
@@ -139,25 +152,44 @@ if ($detalle_id) {
                 ?>
             </div>
 
-            <h4 style="color:#4a5568;"><i class="fas fa-flask"></i> Detalle de Insumos</h4>
-            <table>
-                <thead><tr><th>Insumo</th><th style="text-align:right;">Cantidad</th></tr></thead>
-                <tbody>
-                    <?php 
-                    $last_p = "";
-                    foreach($insumos_detalle as $id): 
-                        if($id['proveedor'] !== $last_p):
-                            $last_p = $id['proveedor'];
-                    ?>
-                        <tr class="row-proveedor"><td colspan="2"><i class="fas fa-truck"></i> <?php echo htmlspecialchars($last_p ?? 'Sin Proveedor'); ?></td></tr>
-                    <?php endif; ?>
-                    <tr>
-                        <td style="padding-left:25px;"><?php echo htmlspecialchars($id['nombre']); ?></td>
-                        <td style="text-align:right;"><strong><?php echo number_format($id['cantidad_usada'], 3); ?></strong> <?php echo $id['unidad_medida']; ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+            <div class="grid-detalle">
+                <div>
+                    <h4 style="color:#2b6cb0;"><i class="fas fa-boxes"></i> Productos Planificados</h4>
+                    <table>
+                        <thead><tr><th>Producto</th><th style="text-align:right;">Cantidad</th></tr></thead>
+                        <tbody>
+                            <?php foreach($productos_detalle as $pd): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($pd['nombre']); ?></td>
+                                <td style="text-align:right;"><strong><?php echo number_format($pd['cantidad_litros'], 2); ?> L</strong></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <h4 style="color:#4a5568;"><i class="fas fa-flask"></i> Insumos Requeridos</h4>
+                    <table>
+                        <thead><tr><th>Insumo</th><th style="text-align:right;">Cantidad</th></tr></thead>
+                        <tbody>
+                            <?php 
+                            $last_p = "";
+                            foreach($insumos_detalle as $id): 
+                                if($id['proveedor'] !== $last_p):
+                                    $last_p = $id['proveedor'];
+                            ?>
+                                <tr class="row-proveedor"><td colspan="2"><i class="fas fa-truck"></i> <?php echo htmlspecialchars($last_p ?? 'Sin Proveedor'); ?></td></tr>
+                            <?php endif; ?>
+                            <tr>
+                                <td style="padding-left:25px;"><?php echo htmlspecialchars($id['nombre']); ?></td>
+                                <td style="text-align:right;"><strong><?php echo number_format($id['cantidad_usada'], 3); ?></strong> <?php echo $id['unidad_medida']; ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
         <?php endif; ?>
 
@@ -180,21 +212,32 @@ if ($detalle_id) {
                         <td class="folio"><strong>#<?php echo $o['id']; ?></strong></td>
                         <td><?php echo date('d/m/y H:i', strtotime($o['fecha_registro'])); ?></td>
                         <td class="status">
-                            <span class="badge <?php echo (($o['estado'] ?? 'PENDIENTE') == 'PENDIENTE') ? 'badge-pendiente' : 'badge-surtido'; ?>">
-                                <?php echo (($o['estado'] ?? 'PENDIENTE') == 'PENDIENTE') ? 'Pendiente' : 'Surtido'; ?>
+                            <?php 
+                                $estado = $o['estado'] ?? 'PENDIENTE';
+                                $clase_badge = 'badge-pendiente';
+                                if($estado == 'SURTIDO') $clase_badge = 'badge-surtido';
+                                if($estado == 'TERMINADO') $clase_badge = 'badge-terminado';
+                            ?>
+                            <span class="badge <?php echo $clase_badge; ?>">
+                                <?php echo ucfirst(strtolower($estado)); ?>
                             </span>
                         </td>
                         <td>$<?php echo number_format($o['costo_total_insumos'], 2); ?></td>
-                        <td style="text-align:right; display:flex; justify-content:flex-end; gap:10px;">
-                            <?php if(($o['estado'] ?? 'PENDIENTE') == 'PENDIENTE'): ?>
+                        <td style="text-align:right; display:flex; justify-content:flex-end; gap:10px; align-items:center;">
+                            <?php if($estado == 'PENDIENTE'): ?>
                                 <form method="POST" style="margin:0;">
                                     <input type="hidden" name="id_orden" value="<?php echo $o['id']; ?>">
                                     <button type="submit" name="recibir_insumos_orden" class="btn-recibir" onclick="return confirm('¿Confirmas la recepción física del material?')">
                                         <i class="fas fa-truck-loading"></i> Recibir
                                     </button>
                                 </form>
+                            <?php elseif($estado == 'SURTIDO'): ?>
+                                <a href="finalizar_produccion.php?id=<?php echo $o['id']; ?>" class="btn-finalizar">
+                                    <i class="fas fa-check-double"></i> Finalizar
+                                </a>
                             <?php endif; ?>
-                            <a href="?ver=<?php echo $o['id']; ?>" style="color:#4c51bf; font-weight:bold; text-decoration:none; margin-top:6px; font-size:0.85rem;">
+                            
+                            <a href="?ver=<?php echo $o['id']; ?>" style="color:#4c51bf; font-weight:bold; text-decoration:none; font-size:0.85rem;">
                                 <i class="fas fa-eye"></i> Detalle
                             </a>
                         </td>
