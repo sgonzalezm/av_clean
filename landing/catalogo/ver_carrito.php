@@ -55,13 +55,25 @@ if ($cliente_logueado) {
         .total-monto { font-size: 2.2rem; font-weight: 800; color: #1a365d; }
         .banner-afiliado { background: #ebf8ff; border: 1px dashed #3182ce; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         
-        /* Estilos de Confirmación Restaurados */
+        /* Upsell / Presentaciones */
+        .upsell-container { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+        .upsell-tag { 
+            display: flex; align-items: center; gap: 6px; padding: 4px 8px; 
+            background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; 
+            text-decoration: none; font-size: 0.75rem; color: #4a5568; transition: all 0.2s;
+        }
+        .upsell-tag:hover { border-color: #3182ce; background: #ebf8ff; transform: translateY(-1px); }
+        .upsell-tag img { width: 18px; height: 18px; object-fit: contain; }
+        .upsell-tag .precio-v { color: #38a169; font-weight: bold; margin-left: 3px; }
+
+        /* Estilos de Confirmación */
         .order-success-card { background: #f0fff4; border: 2px solid #68d391; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 25px; animation: fadeInDown 0.6s ease-out; }
         .btn-pdf { background-color: #e53e3e; color: white; padding: 15px 25px; border-radius: 10px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; }
         .btn-whatsapp { background-color: #25D366; color: white; padding: 15px 25px; border-radius: 10px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; }
         
         @keyframes fadeInDown { from { opacity: 0; transform: translate3d(0, -20px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
 
+        /* Modales */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
         .modal-content { background: white; width: 90%; max-width: 450px; margin: 8% auto; padding: 30px; border-radius: 15px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .campo-modal { margin-bottom: 15px; }
@@ -86,45 +98,28 @@ if ($cliente_logueado) {
             <?php if ($orden_id): ?>
                 <div class="order-success-card">
                     <i class="fas fa-check-circle" style="color: #38a169; font-size: 2.5rem;"></i>
-                    <h2 style="color: #22543d; margin: 10px 0;">¡Pedido Guardado #<?php echo $orden_id; ?>!</h2>
+                    <h2 style="color: #22543d; margin: 10px 0;">¡Pedido Guardado #<?php echo $id_orden ?? $orden_id; ?>!</h2>
                     <p style="color: #276749; margin-bottom: 15px;">Se ha generado tu ficha de pago con éxito.</p>
-                    
                     <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-                        <a href="generar_pdf.php?id=<?php echo $orden_id; ?>" target="_blank" class="btn-pdf">
-                            <i class="fas fa-file-pdf"></i> Imprimir Pago (QR)
-                        </a>
-                        <a href="https://wa.me/5213335518435?text=<?php echo urlencode("Hola! 👋 Mi pedido es el Folio: #$orden_id. ¿Me confirman recepción?"); ?>" 
-                           target="_blank" class="btn-whatsapp">
-                            <i class="fab fa-whatsapp"></i> Finalizar por WhatsApp
-                        </a>
+                        <a href="generar_pdf.php?id=<?php echo $orden_id; ?>" target="_blank" class="btn-pdf"><i class="fas fa-file-pdf"></i> Imprimir QR</a>
+                        <a href="https://wa.me/5213335518435?text=Folio: #<?php echo $orden_id; ?>" target="_blank" class="btn-whatsapp"><i class="fab fa-whatsapp"></i> WhatsApp</a>
                     </div>
                 </div>
             <?php endif; ?>
 
             <?php if (!$orden_id): ?>
-            <div class="banner-afiliado" style="display: flex; justify-content: space-between; align-items: center; background: #ebf8ff; padding: 15px; border-radius: 10px; border: 1px dashed #3182ce;">
+            <div class="banner-afiliado">
                 <?php if ($cliente_logueado): ?>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-check-circle" style="color:#38a169; font-size: 1.2rem;"></i> 
-                        <span>
-                            Hola, <strong><?php echo explode(' ', $_SESSION['cliente_nombre'])[0]; ?></strong>. 
-                            Nivel <?php echo $tipo_usuario; ?> (<?php echo ($porcentaje_descuento * 100); ?>% desc.)
-                        </span>
+                        <i class="fas fa-check-circle" style="color:#38a169;"></i> 
+                        <span>Hola, <strong><?php echo explode(' ', $_SESSION['cliente_nombre'])[0]; ?></strong>. Nivel <?php echo $tipo_usuario; ?></span>
                     </div>
-                    <a href="logout_cliente.php" style="color: #e53e3e; text-decoration: none; font-size: 0.85rem; font-weight: bold; padding: 5px 10px; border: 1px solid #feb2b2; border-radius: 6px; background: white;">
-                        <i class="fas fa-sign-out-alt"></i> Salir
-                    </a>
+                    <a href="logout_cliente.php" style="color: #e53e3e; text-decoration: none; font-size: 0.8rem; font-weight: bold;">Salir</a>
                 <?php else: ?>
-            <div>
-            <i class="fas fa-user-tag" style="color:#3182ce"></i> 
-            ¡Obtén descuentos! <strong>Inicia sesión</strong>.
-        </div>
-        <button onclick="abrirModalAuth()" style="background:#3182ce; color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">
-            Entrar / Registro
-        </button>
-    <?php endif; ?>
-</div>
-            <?php endif; ?>
+                    <div><i class="fas fa-user-tag"></i> ¡Inicia sesión para obtener descuentos!</div>
+                    <button onclick="abrirModalAuth()" style="background:#3182ce; color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer;">Entrar</button>
+                <?php endif; ?>
+            </div>
 
             <?php if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])): ?>
                 <table class="tabla-carrito">
@@ -146,52 +141,66 @@ if ($cliente_logueado) {
                             if ($p):
                                 $subtotal = $p['precio'] * $cantidad;
                                 $total_bruto += $subtotal;
+                                
+                                $stmt_v = $pdo->prepare("SELECT id, precio, imagen_url, volumen_valor, volumen_unidad FROM productos WHERE id_formula_maestra = ? AND id != ? ORDER BY volumen_valor ASC");
+                                $stmt_v->execute([$p['id_formula_maestra'], $id]);
+                                $presentaciones = $stmt_v->fetchAll(PDO::FETCH_ASSOC);
                         ?>
                             <tr>
                                 <td>
                                     <div style="display:flex; gap:15px; align-items:center;">
-                                        <img src="<?php echo $p['imagen_url']; ?>" style="width:50px; height:50px; object-fit:contain; background:#f7fafc; border-radius:8px;">
-                                        <strong><?php echo htmlspecialchars($p['nombre']); ?></strong>
+                                        <img src="<?php echo $p['imagen_url']; ?>" style="width:50px; height:50px; object-fit:contain; border-radius:8px;">
+                                        <div>
+                                            <strong><?php echo htmlspecialchars($p['nombre']); ?></strong>
+                                            <?php if ($presentaciones): ?>
+                                            <div class="upsell-container">
+                                                <?php foreach ($presentaciones as $pres): ?>
+                                                    <a href="actualizar_carrito.php?accion=swap&id_actual=<?php echo $id; ?>&id_nuevo=<?php echo $pres['id']; ?>" class="upsell-tag">
+                                                        <span><?php echo number_format($pres['volumen_valor'], 0) . $pres['volumen_unidad']; ?></span>
+                                                        <span class="precio-v">$<?php echo number_format($pres['precio'], 2); ?></span>
+                                                    </a>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </td>
-                                <td>
-                                    <div class="controles-cantidad" style="justify-content:center;">
+                                <td style="text-align:center;">
+                                    <div class="controles-cantidad">
                                         <a href="actualizar_carrito.php?accion=cantidad&id=<?php echo $id; ?>&meta=menos" class="btn-qty">-</a>
                                         <strong><?php echo $cantidad; ?></strong>
                                         <a href="actualizar_carrito.php?accion=cantidad&id=<?php echo $id; ?>&meta=mas" class="btn-qty">+</a>
                                     </div>
                                 </td>
                                 <td style="font-weight: 700;">$<?php echo number_format($subtotal, 2); ?></td>
-                                <td style="text-align:right;"><a href="actualizar_carrito.php?accion=eliminar&id=<?php echo $id; ?>" style="color:#e53e3e; text-decoration:none;">&times;</a></td>
+                                <td style="text-align:right;"><a href="actualizar_carrito.php?accion=eliminar&id=<?php echo $id; ?>" style="color:#e53e3e;"><i class="fas fa-trash-alt"></i></a></td>
                             </tr>
                         <?php endif; endforeach; ?>
                     </tbody>
                 </table>
 
-                <div class="total-contenedor">
+                <div class="total-contenedor" style="text-align: right; margin-top: 20px;">
                     <?php if ($cliente_logueado && $porcentaje_descuento > 0): 
                         $ahorro = $total_bruto * $porcentaje_descuento;
                         $total_final = $total_bruto - $ahorro;
                     ?>
                         <span style="color:#718096">Subtotal: $<?php echo number_format($total_bruto, 2); ?></span><br>
-                        <span style="color:#38a169; font-weight:bold;">
-                            Descuento Nivel <?php echo $tipo_usuario; ?> (<?php echo ($porcentaje_descuento * 100); ?>%): -$<?php echo number_format($ahorro, 2); ?>
-                        </span><br>
+                        <span style="color:#38a169; font-weight:bold;">Descuento: -$<?php echo number_format($ahorro, 2); ?></span><br>
                         <span class="total-monto">$<?php echo number_format($total_final, 2); ?></span>
                     <?php else: ?>
-                        <span style="color:#718096">Total de tu pedido:</span><br>
                         <span class="total-monto">$<?php echo number_format($total_bruto, 2); ?></span>
                     <?php endif; ?>
                 </div>
 
                 <div style="margin-top:30px; display:flex; justify-content:space-between;">
-                    <a href="index.php" style="color:#3182ce; text-decoration:none; font-weight:bold;">+ Agregar más</a>
+                    <a href="index.php" style="color:#3182ce; font-weight:bold;">+ Agregar más</a>
                     <button onclick="abrirModalEnvio()" style="background:#1a365d; color:white; border:none; padding:15px 30px; border-radius:12px; cursor:pointer; font-weight:bold;">
                         Confirmar Pedido <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
-            <?php elseif (!$orden_id): ?>
+            <?php else: ?>
                 <div style="text-align:center; padding:50px;"><p>Tu carrito está vacío.</p><a href="index.php">Ir a la tienda</a></div>
+            <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
@@ -220,38 +229,20 @@ if ($cliente_logueado) {
     <div id="modalEnvio" class="modal">
         <div class="modal-content">
             <h3 style="margin-top:0;"><i class="fas fa-shipping-fast"></i> Datos de Entrega</h3>
-            <p style="font-size: 0.85rem; color: #718096; margin-bottom: 15px;">
-                <?php echo $cliente_logueado ? "Confirma tus datos guardados para finalizar." : "Ingresa tus datos para generar la orden."; ?>
-            </p>
-
             <form action="procesar_pedido.php" method="POST">
-                <input type="hidden" name="actualizar_perfil" value="<?php echo $cliente_logueado ? '1' : '0'; ?>">
-
                 <div class="campo-modal">
                     <label>Correo Electrónico</label>
-                    <input type="email" name="email" 
-                        value="<?php echo !empty($datos_cliente['email']) ? $datos_cliente['email'] : ($_SESSION['cliente_email'] ?? ''); ?>" 
-                        required <?php echo $cliente_logueado ? 'readonly style="background:#f7fafc"' : ''; ?>>
+                    <input type="email" name="email" value="<?php echo $datos_cliente['email']; ?>" required>
                 </div>
-
                 <div class="campo-modal">
                     <label>Teléfono (WhatsApp)</label>
-                    <input type="tel" name="telefono" 
-                        value="<?php echo $datos_cliente['telefono']; ?>" 
-                        placeholder="33 1234 5678" required>
+                    <input type="tel" name="telefono" value="<?php echo $datos_cliente['telefono']; ?>" required>
                 </div>
-
                 <div class="campo-modal">
                     <label>Dirección de Entrega</label>
-                    <textarea name="domicilio" required rows="3" 
-                            placeholder="Calle, Número, Colonia, Ciudad"><?php echo $datos_cliente['direccion']; ?></textarea>
+                    <textarea name="domicilio" required rows="3"><?php echo $datos_cliente['direccion']; ?></textarea>
                 </div>
-
-                <button type="submit" class="btn-auth" style="background:#1a365d; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                    <i class="fas fa-check-double"></i> 
-                    <?php echo ($cliente_logueado && !empty($datos_cliente['direccion'])) ? "Confirmar y Pagar" : "Guardar y Generar Orden"; ?>
-                </button>
-                
+                <button type="submit" class="btn-auth" style="background:#1a365d;">Finalizar y Pagar</button>
                 <button type="button" onclick="cerrarModalEnvio()" style="background:none; border:none; color:#e53e3e; width:100%; margin-top:10px; cursor:pointer;">Cancelar</button>
             </form>
         </div>

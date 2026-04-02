@@ -48,9 +48,6 @@ function claseActiva($pagina) {
     <a href="proceso.php" class="<?php echo claseActiva('proceso.php'); ?>">
         <i class="fas fa-tasks"></i> Procesos
     </a>
-    <a href="inventario.php" class="<?php echo claseActiva('inventario.php'); ?>">
-        <i class="fas fa-warehouse"></i> Inventario
-    </a>
     <a href="compras.php" class="<?php echo claseActiva('compras.php'); ?>">
         <i class="fas fa-shopping-bag"></i> Compras
     </a>

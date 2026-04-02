@@ -4,160 +4,170 @@ require_once '../includes/conexion.php';
 verificarSesion();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $nombre = $_POST['nombre'] ?? '';
+    $nombre_base = $_POST['nombre'] ?? '';
     $descripcion = $_POST['descripcion'] ?? '';
-    $precio = $_POST['precio'] ?? 0;
-    $imagen_url = $_POST['imagen_archivo'] ?? '';
     $categoria = $_POST['categoria'] ?? '';
     $formula = $_POST['formula'] ?? 0;
+    $presentaciones_elegidas = $_POST['presentaciones'] ?? []; 
+    $precios_presentaciones = $_POST['precios'] ?? []; 
 
+    $imagen_url = '';
+
+    // --- TU LÓGICA DE SUBIDA DE IMAGEN ---
     if (isset($_FILES['imagen_archivo']) && $_FILES['imagen_archivo']['error'] === UPLOAD_ERR_OK) {
         $ruta_destino = '../img/';
-        
-        if (!is_dir($ruta_destino)) {
-            mkdir($ruta_destino, 0777, true);
-        }
-
-        // Nombre único para evitar duplicados
+        if (!is_dir($ruta_destino)) { mkdir($ruta_destino, 0777, true); }
         $nombre_archivo = time() . '_' . basename($_FILES['imagen_archivo']['name']);
         $archivo_final = $ruta_destino . $nombre_archivo;
         
         $tipo_archivo = strtolower(pathinfo($archivo_final, PATHINFO_EXTENSION));
-        $formatos_permitidos = ["png", "jpg", "jpeg", "webp"];
-
-        if (in_array($tipo_archivo, $formatos_permitidos)) {
+        if (in_array($tipo_archivo, ["png", "jpg", "jpeg", "webp"])) {
             if (move_uploaded_file($_FILES['imagen_archivo']['tmp_name'], $archivo_final)) {
-                $imagen_url = $archivo_final; // Guardamos esta ruta en la BD
-            } else {
-                $error = "Error al subir el archivo al servidor.";
+                $imagen_url = $archivo_final;
             }
-        } else {
-            $error = "Formato no permitido. Usa PNG, JPG o WebP.";
         }
     }
 
-    // Lógica básica para evitar el error si la tabla productos requiere imagen_url
-    $stmt = $pdo->prepare("INSERT INTO productos (nombre, descripcion, precio, imagen_url, categoria, id_formula_maestra) VALUES (?, ?, ?, ?, ?, ?)");
-    
-    try {
-        if ($stmt->execute([$nombre, $descripcion, $precio, $imagen_url, $categoria, $formula])) {
-            header('Location: catalogo_productos.php?ok=1');
+    if (empty($presentaciones_elegidas)) {
+        $error = "Debes seleccionar al menos una presentación (1L, 5L, etc.)";
+    } else {
+        try {
+            $pdo->beginTransaction();
+            
+            // Query ajustada a tus columnas reales
+            $stmt = $pdo->prepare("INSERT INTO productos (nombre, descripcion, precio, imagen_url, categoria, id_formula_maestra, volumen_valor, volumen_unidad) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+
+            foreach ($presentaciones_elegidas as $pres_id) {
+                // Consultamos los detalles de la presentación configurada
+                $stmt_p = $pdo->prepare("SELECT valor, unidad FROM config_presentaciones WHERE id = ?");
+                $stmt_p->execute([$pres_id]);
+                $p_info = $stmt_p->fetch();
+
+                $precio_especifico = $precios_presentaciones[$pres_id] ?? 0;
+                
+                // Nombre compuesto para que en el ticket salga claro: "Cloro (5L)"
+                $nombre_final = $nombre_base . " (" . number_format($p_info['valor'], 0) . $p_info['unidad'] . ")";
+
+                $stmt->execute([
+                    $nombre_final, 
+                    $descripcion, 
+                    $precio_especifico, 
+                    $imagen_url, 
+                    $categoria, 
+                    $formula,
+                    $p_info['valor'],
+                    $p_info['unidad']
+                ]);
+            }
+
+            $pdo->commit();
+            header('Location: catalogo_productos.php?msj=Creados');
             exit;
-        } else {
-            $error = "Error al guardar en la base de datos.";
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            $error = "Error al crear presentaciones: " . $e->getMessage();
         }
-    } catch (PDOException $e) {
-        $error = "Error crítico: " . $e->getMessage();
     }
 }
 
-// Obtener categorías de la base de datos
-try {
-    $stmt_cat = $pdo->query("SELECT * FROM categorias ORDER BY nombre ASC");
-    $categorias_db = $stmt_cat->fetchAll();
-} catch (PDOException $e) {
-    $categorias_db = [];
-    $error = "Error al cargar categorías: " . $e->getMessage();
-}
-
-// Obtener fórmulas maestras para el dropdown
-try {
-    $stmt_formulas = $pdo->query("SELECT id, nombre_formula FROM formulas_maestras ORDER BY nombre_formula ASC");
-    $formulas_db = $stmt_formulas->fetchAll();
-} catch (PDOException $e) {
-    $formulas_db = [];
-    $error = "Error al cargar fórmulas maestras: " . $e->getMessage();
-}
-
+// Consultas para llenar el formulario
+$categorias_db = $pdo->query("SELECT * FROM categorias ORDER BY nombre ASC")->fetchAll();
+$formulas_db = $pdo->query("SELECT id, nombre_formula FROM formulas_maestras ORDER BY nombre_formula ASC")->fetchAll();
+$presentaciones_db = $pdo->query("SELECT * FROM config_presentaciones ORDER BY valor ASC")->fetchAll();
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>Agregar Producto</title>
+    <title>Nuevo Producto | AHD Clean</title>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
+    <style>
+        .grid-pres { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 10px; }
+        .card-pres { background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; }
+        .card-pres label { font-weight: bold; color: #1e293b; cursor: pointer; display: block; }
+        .precio-input { width: 100%; padding: 8px; margin-top: 10px; border: 1px solid #cbd5e0; border-radius: 6px; display: none; }
+        /* Mostrar el input de precio solo si el checkbox está marcado */
+        .check-pres:checked ~ .precio-input { display: block; }
+    </style>
 </head>
 <body>
-    <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
-
     <?php include 'sidebar.php'; ?>
 
     <div class="main">
         <div class="header">
-            <h1><i class="fas fa-plus-circle"></i> Agregar Nuevo Producto</h1>
-            <a href="catalogo_productos.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Volver</a>
+            <h1><i class="fas fa-plus-circle"></i> Alta de Producto y Presentaciones</h1>
+            <a href="catalogo_productos.php" class="btn-secondary" style="text-decoration:none; padding:8px 15px; background:#64748b; color:white; border-radius:6px;">Volver</a>
         </div>
 
         <?php if (isset($error)): ?>
-            <div class="mensaje error" style="background:#fee2e2; color:#b91c1c; padding:15px; margin-bottom:20px; border-radius:8px;">
-                <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
-            </div>
+            <div style="background:#fee2e2; color:#b91c1c; padding:15px; border-radius:8px; margin-bottom:20px;"><?= $error ?></div>
         <?php endif; ?>
 
-        <div class="form-container">
-            <form method="POST" enctype="multipart/form-data" class="slide-in">
+        <div class="form-container" style="background:white; padding:25px; border-radius:15px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+            <form method="POST" enctype="multipart/form-data">
                 
-                <div class="form-group">
-                    <label for="nombre"><i class="fas fa-tag"></i> Nombre del Producto</label>
-                    <input type="text" id="nombre" name="nombre" class="form-control" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="descripcion"><i class="fas fa-align-left"></i> Descripción</label>
-                    <textarea id="descripcion" name="descripcion" class="form-control" rows="4" required></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="precio"><i class="fas fa-dollar-sign"></i> Precio</label>
-                    <input type="number" id="precio" name="precio" class="form-control" step="0.01" min="0" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="imagen_archivo"><i class="fas fa-upload"></i> Seleccionar Imagen</label>
-                    <input type="file" id="imagen_archivo" name="imagen_archivo" class="form-control" accept="image/*">
-                    
-                    <div class="info">
-                        <i class="fas fa-info-circle"></i> 
-                        Selecciona un archivo PNG o JPG.
+                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
+                    <div class="form-group">
+                        <label>Nombre del Producto (Sin el tamaño)</label>
+                        <input type="text" name="nombre" class="form-control" placeholder="Ej: Desengrasante Multiusos" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Categoría</label>
+                        <select name="categoria" class="form-control" required>
+                            <?php foreach($categorias_db as $c): ?>
+                                <option value="<?= $c['nombre'] ?>"><?= $c['nombre'] ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="categoria"><i class="fas fa-folder"></i> Categoría</label>
-                    <select id="categoria" name="categoria" class="form-control" required>
-                        <option value="">Seleccionar categoría</option>
-                        <?php foreach ($categorias_db as $cat): ?>
-                            <option value="<?php echo htmlspecialchars($cat['nombre']); ?>">
-                                <?php echo htmlspecialchars($cat['nombre']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label>Descripción General</label>
+                    <textarea name="descripcion" class="form-control" rows="2"></textarea>
                 </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div class="form-group">
+                        <label>Fórmula Química Asociada</label>
+                        <select name="formula" class="form-control" required>
+                            <option value="">Seleccionar fórmula...</option>
+                            <?php foreach($formulas_db as $f): ?>
+                                <option value="<?= $f['id'] ?>"><?= $f['nombre_formula'] ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Imagen del Producto</label>
+                        <input type="file" name="imagen_archivo" class="form-control">
+                    </div>
+                </div>
+
+                <hr style="margin:30px 0; border:0; border-top:1px solid #eee;">
 
                 <div class="form-group">
-                    <label for="formula"><i class="fas fa-folder"></i> Fórmula</label>
-                    <select id="formula" name="formula" class="form-control" required>
-                        <option value="">Seleccionar fórmula</option>
-                        <?php foreach ($formulas_db as $form): ?>
-                            <option value="<?php echo htmlspecialchars($form['id']); ?>">
-                                <?php echo htmlspecialchars($form['nombre_formula']); ?>
-                            </option>
+                    <label style="font-size:1.1rem; color:#1e293b;"><i class="fas fa-layer-group"></i> Selecciona las presentaciones a crear:</label>
+                    <div class="grid-pres">
+                        <?php foreach($presentaciones_db as $p): ?>
+                        <div class="card-pres">
+                            <label>
+                                <input type="checkbox" name="presentaciones[]" value="<?= $p['id'] ?>" class="check-pres"> 
+                                <?= $p['etiqueta'] ?>
+                            </label>
+                            <input type="number" step="0.01" name="precios[<?= $p['id'] ?>]" class="precio-input" placeholder="Precio para <?= $p['valor'].$p['unidad'] ?>">
+                        </div>
                         <?php endforeach; ?>
-                    </select>
+                    </div>
                 </div>
 
-                <div class="button-group">
-                    <button type="submit" class="btn-guardar">
-                        <i class="fas fa-save"></i> Guardar Producto
+                <div style="margin-top:30px; text-align:right;">
+                    <button type="submit" class="btn-guardar" style="background:#059669; color:white; border:none; padding:12px 25px; border-radius:8px; font-weight:bold; cursor:pointer;">
+                        <i class="fas fa-save"></i> Generar Productos
                     </button>
-                    <a href="catalogo_productos.php" class="btn-cancelar">Cancelar</a>
                 </div>
             </form>
         </div>
     </div>
-
-    <script src="../js/admin.js"></script>
 </body>
 </html>

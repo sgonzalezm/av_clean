@@ -2,7 +2,7 @@
 session_start();
 require_once '../includes/conexion.php';
 
-// Verificamos que vengan datos del formulario POST
+// Verificamos que vengan datos del formulario POST y que el carrito no esté vacío
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
     
     $email = $_POST['email'];
@@ -16,24 +16,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
     try {
         $pdo->beginTransaction();
 
-        // --- BLOQUE NUEVO: ACTUALIZAR PERFIL DEL CLIENTE ---
+        // 1. ACTUALIZAR PERFIL DEL CLIENTE (Si está logueado)
         if ($cliente_id) {
-            // Actualizamos la tabla clientes con el teléfono y dirección recibidos
-            // Usamos 'direccion' porque así aparece en tu captura de base de datos
             $stmt_perfil = $pdo->prepare("UPDATE clientes SET telefono = ?, direccion = ? WHERE id = ?");
             $stmt_perfil->execute([$telefono, $domicilio, $cliente_id]);
         }
 
-        // 1. Insertar el pedido con los datos del formulario
-        $stmt = $pdo->prepare("INSERT INTO pedidos (fecha_pedido, total, status, email, telefono, domicilio) VALUES (NOW(), 0, 'pendiente', ?, ?, ?)");
+        // 2. INSERTAR EL PEDIDO MAESTRO
+        $stmt = $pdo->prepare("INSERT INTO pedidos (fecha_pedido, total, status, email, telefono, domicilio) VALUES (NOW(), 0, 'Pendiente', ?, ?, ?)");
         $stmt->execute([$email, $telefono, $domicilio]);
         $id_pedido = $pdo->lastInsertId();
 
         $total_bruto = 0;
 
-        // 2. Insertar los detalles
+        // 3. PROCESAR DETALLES E INVENTARIO POR FÓRMULA
         foreach ($_SESSION['carrito'] as $id_producto => $cantidad) {
-            $stmt_p = $pdo->prepare("SELECT precio, nombre FROM productos WHERE id = ?");
+            // Obtenemos datos del producto incluyendo su fórmula y volumen por unidad
+            $stmt_p = $pdo->prepare("SELECT precio, nombre, id_formula_maestra, volumen_valor FROM productos WHERE id = ?");
             $stmt_p->execute([$id_producto]);
             $prod = $stmt_p->fetch();
 
@@ -41,12 +40,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
                 $subtotal = $prod['precio'] * $cantidad;
                 $total_bruto += $subtotal;
 
+                // A. Insertar el detalle del pedido
                 $stmt_det = $pdo->prepare("INSERT INTO detalle_pedido (pedido_id, producto_id, producto_nombre, cantidad, precio_unitario) VALUES (?, ?, ?, ?, ?)");
                 $stmt_det->execute([$id_pedido, $id_producto, $prod['nombre'], $cantidad, $prod['precio']]);
+
+                // B. DESCUENTO DE INVENTARIO POR FÓRMULA (Granel)
+                // Solo si el producto tiene una fórmula asociada
+                if (!empty($prod['id_formula_maestra'])) {
+                    // Calculamos: Litros por unidad * cantidad vendida
+                    $litros_a_restar = $prod['volumen_valor'] * $cantidad;
+
+                    // Restamos del stock disponible en la fórmula maestra
+                    $stmt_inv = $pdo->prepare("UPDATE formulas_maestras SET stock_litros_disponibles = stock_litros_disponibles - ? WHERE id = ?");
+                    $stmt_inv->execute([$litros_a_restar, $prod['id_formula_maestra']]);
+                }
             }
         }
 
-        // --- BLOQUE NUEVO: CALCULAR DESCUENTO REAL ---
+        // 4. CALCULAR DESCUENTO POR NIVEL DE CLIENTE
         $porcentaje_descuento = 0;
         if ($cliente_id) {
             switch ($tipo_usuario) {
@@ -57,21 +68,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
         }
         $total_con_descuento = $total_bruto - ($total_bruto * $porcentaje_descuento);
 
-        // 3. Actualizar total final (con descuento aplicado si aplica)
+        // 5. ACTUALIZAR TOTAL FINAL DEL PEDIDO
         $stmt_upd = $pdo->prepare("UPDATE pedidos SET total = ? WHERE id = ?");
         $stmt_upd->execute([$total_con_descuento, $id_pedido]);
 
+        // Si todo salió bien, confirmamos los cambios en la DB
         $pdo->commit();
         
-        // Vaciamos el carrito
+        // Vaciamos el carrito de la sesión
         unset($_SESSION['carrito']); 
 
+        // Redirigimos con confirmación
         header("Location: ver_carrito.php?orden_ok=$id_pedido");
         exit;
 
     } catch (Exception $e) {
+        // Si algo falla, deshacemos todo para no dejar datos inconsistentes
         $pdo->rollBack();
-        die("Error en AHD Clean: " . $e->getMessage());
+        die("Error crítico en el inventario de AHD Clean: " . $e->getMessage());
     }
 } else {
     header('Location: ver_carrito.php');
