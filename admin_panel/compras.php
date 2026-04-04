@@ -182,6 +182,15 @@ $bajo_stock = $pdo->query("SELECT COUNT(*) FROM insumos WHERE stock_actual < 5")
                 </div>
             </a>
 
+            <a href="gasto_nuevo.php" class="card-link">
+                <div class="card clickable">
+                    <i class="fas fa-toolbox fa-2x" style="color: #686563;"></i>
+                    <h3>Equipo y consumibles</h3>
+                    <p>Herramienta, equipamiento, insumos y consumibles requeridos por la operacion.</p>
+                    <span class="btn-editar-mini">Administrar <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+
         </div> </div> <script src="../js/admin.js"></script>
     <script>
         function toggleSidebar() {

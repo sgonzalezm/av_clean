@@ -8,6 +8,20 @@ $mensaje_exito = "";
 // --- FUNCIÓN DE AUDITORÍA INTEGRADA ---
 
 // --- PROCESAMIENTO DE DATOS ---
+
+// NUEVO: Procesar actualización de precio
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_precio'])) {
+    $id_insumo = $_POST['id_insumo_edit'];
+    $nuevo_precio = $_POST['nuevo_precio'];
+
+    $sql_update = "UPDATE insumos SET precio_unitario = ? WHERE id = ?";
+    $stmt = $pdo->prepare($sql_update);
+    if($stmt->execute([$nuevo_precio, $id_insumo])) {
+        // registrarAuditoria($pdo, 'UPDATE', 'insumos', $id_insumo, "Actualizó precio a: $nuevo_precio");
+    }
+    header("Location: insumos.php"); exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['nuevo_insumo'])) {
     $nombre = $_POST['nombre'];
     $unidad = $_POST['unidad'];
@@ -64,6 +78,8 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         .modal-content { background:white; width:90%; max-width:400px; margin: 10% auto; padding:25px; border-radius:12px; }
         .form-control { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         .btn-save { background: #28a745; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; }
+        .btn-edit-small { background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 0.9rem; margin-left: 5px; }
+        .btn-edit-small:hover { color: #2563eb; }
     </style>
 </head>
 <body>
@@ -102,7 +118,12 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
                             foreach($tags as $tag) echo "<span class='badge-pres'>$tag</span>";
                         else: echo "<small style='color:#ccc;'>Única presentación</small>"; endif; ?>
                     </td>
-                    <td>$<?php echo number_format($i['precio_unitario'], 2); ?></td>
+                    <td>
+                        $<?php echo number_format($i['precio_unitario'], 2); ?>
+                        <button class="btn-edit-small" title="Editar Precio" onclick="abrirModalPrecio(<?php echo $i['id']; ?>, '<?php echo addslashes($i['nombre']); ?>', <?php echo $i['precio_unitario']; ?>)">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
                     <td><strong><?php echo (float)$i['stock_actual']; ?> <?php echo $i['unidad_medida']; ?></strong></td>
                     <td>
                         <button class="btn-pres" onclick="abrirModalPres(<?php echo $i['id']; ?>, '<?php echo addslashes($i['nombre']); ?>')">
@@ -127,7 +148,7 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
                 <input type="text" name="unidad" class="form-control" placeholder="Ej. KG o LT" required>
                 
                 <label>Precio Unitario Base:</label>
-                <input type="number" name="precio" step="0.01" class="form-control" placeholder="0.00" required>
+                <input type="number" name="precio" step="0.0001" class="form-control" placeholder="0.00" required>
                 
                 <label>Proveedor Principal:</label>
                 <select name="id_proveedor" class="form-control">
@@ -158,11 +179,36 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         </div>
     </div>
 
+    <div id="modalPrecio" class="modal">
+        <div class="modal-content">
+            <h3 id="edit_nombre_insumo">Actualizar Precio</h3>
+            <form method="POST">
+                <input type="hidden" name="update_precio" value="1">
+                <input type="hidden" name="id_insumo_edit" id="id_insumo_edit">
+                
+                <label>Nuevo Precio Unitario:</label>
+                <input type="number" name="nuevo_precio" id="nuevo_precio_input" step="0.0001" class="form-control" required>
+                
+                <button type="submit" class="btn-save" style="background:#3b82f6;">Actualizar Precio</button>
+                <button type="button" onclick="document.getElementById('modalPrecio').style.display='none'" style="width:100%; margin-top:10px; border:none; background:#eee; padding:10px; border-radius:8px;">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
     <script>
+        // Función para abrir modal de múltiplos
         function abrirModalPres(id, nombre) {
             document.getElementById('id_insumo_pres').value = id;
             document.getElementById('pres_nombre_insumo').innerText = "Múltiplo para: " + nombre;
             document.getElementById('modalPres').style.display = 'block';
+        }
+
+        // NUEVO: Función para abrir modal de edición de precio
+        function abrirModalPrecio(id, nombre, precioActual) {
+            document.getElementById('id_insumo_edit').value = id;
+            document.getElementById('edit_nombre_insumo').innerText = "Editar precio: " + nombre;
+            document.getElementById('nuevo_precio_input').value = precioActual;
+            document.getElementById('modalPrecio').style.display = 'block';
         }
 
         function filterTable() {

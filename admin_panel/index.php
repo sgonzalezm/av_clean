@@ -3,265 +3,206 @@ include '../includes/session.php';
 include '../includes/conexion.php';
 verificarSesion();
 
-// 1. Estadísticas Generales
+// --- 1. LÓGICA DE FILTRADO DINÁMICO ---
+$periodo = $_GET['periodo'] ?? 'mes';
+$f_inicio_custom = $_GET['f_inicio'] ?? '';
+$f_fin_custom = $_GET['f_fin'] ?? '';
+
+switch ($periodo) {
+    case 'trimestre':
+        $fecha_inicio = date('Y-m-d', strtotime('-3 months'));
+        $fecha_fin = date('Y-m-d');
+        $titulo_filtro = "Último Trimestre";
+        break;
+    case 'custom':
+        $fecha_inicio = $f_inicio_custom;
+        $fecha_fin = $f_fin_custom;
+        $titulo_filtro = "Rango Personalizado";
+        break;
+    case 'mes':
+    default:
+        $fecha_inicio = date('Y-m-01');
+        $fecha_fin = date('Y-m-d');
+        $titulo_filtro = "Mes Actual (" . date('M Y') . ")";
+        break;
+}
+
+$rango_sql = "BETWEEN '$fecha_inicio' AND '$fecha_fin 23:59:59'";
+
+// --- 2. CONSULTAS A BASE DE DATOS ---
 $totalProductos = $pdo->query("SELECT COUNT(*) FROM productos")->fetchColumn();
-$totalUsuarios  = $pdo->query("SELECT COUNT(*) FROM usuarios_admin")->fetchColumn();
 $totalFormulas  = $pdo->query("SELECT COUNT(*) FROM formulas_maestras")->fetchColumn();
 
-// 2. Métricas de Ventas y Facturación
-$mes_actual = date('m');
-$stmt_ventas = $pdo->query("
-    SELECT 
-        SUM(total) as ingresos_totales, 
-        COUNT(*) as total_pedidos,
-        SUM(CASE WHEN status = 'Completado' THEN 1 ELSE 0 END) as pedidos_completados
-    FROM pedidos 
-    WHERE MONTH(fecha_pedido) = $mes_actual
-");
+// Ventas del periodo
+$stmt_ventas = $pdo->query("SELECT SUM(total) as ingresos, COUNT(*) as pedidos FROM pedidos WHERE fecha_pedido $rango_sql AND status != 'Cancelado'");
 $stats_ventas = $stmt_ventas->fetch();
+$ingresosPeriodo = $stats_ventas['ingresos'] ?? 0;
 
-$totalFacturado = $pdo->query("
-    SELECT SUM(p.total) 
-    FROM facturacion f 
-    JOIN pedidos p ON f.pedido_id = p.id 
-    WHERE MONTH(f.fecha_facturacion) = $mes_actual
-")->fetchColumn() ?? 0;
+// Inversión en Producción (Basado en costo de insumos de las órdenes)
+$inversionProduccion = $pdo->query("SELECT SUM(costo_total_insumos) FROM ordenes_produccion WHERE fecha_registro $rango_sql")->fetchColumn() ?? 0;
 
-// 3. Métricas Operativas e Inversión
-$inversionProduccion = $pdo->query("
-    SELECT SUM(costo_total_insumos) 
-    FROM ordenes_produccion 
-    WHERE MONTH(fecha_registro) = $mes_actual
-")->fetchColumn() ?? 0;
+// Balance y Otros
+$balanceNeto = $ingresosPeriodo - $inversionProduccion;
+$ivaAcreditable = $inversionProduccion * 0.16;
 
+// Operaciones
 $stats_prod = $pdo->query("
     SELECT 
         SUM(CASE WHEN estado = 'PENDIENTE' THEN 1 ELSE 0 END) as pendientes,
-        SUM(CASE WHEN estado = 'EN PROCESO' THEN 1 ELSE 0 END) as en_proceso,
-        SUM(CASE WHEN estado = 'SURTIDO' THEN 1 ELSE 0 END) as finalizadas
-    FROM ordenes_produccion
+        SUM(CASE WHEN estado = 'TERMINADO' THEN 1 ELSE 0 END) as finalizadas
+    FROM ordenes_produccion WHERE fecha_registro $rango_sql
 ")->fetch();
 
-$insumosCriticos = $pdo->query("SELECT COUNT(*) FROM insumos WHERE stock_actual <= 5")->fetchColumn();
-
-// 4. Lógica de Rentabilidad Dinámica (Nuevas Aristas)
-$ingresosMes = $stats_ventas['ingresos_totales'] ?? 0;
-$balanceNeto = $ingresosMes - $inversionProduccion;
-
-// Valor de lo que se produjo pero sigue en stock (Inversión que no es pérdida)
-$valorInventarioProducido = $pdo->query("
-    SELECT SUM(costo_total_insumos) 
-    FROM ordenes_produccion 
-    WHERE estado = 'SURTIDO' AND MONTH(fecha_registro) = $mes_actual
-")->fetchColumn() ?? 0;
-
-// IVA Acreditable (Deducción estimada del 16%)
-$ivaAcreditable = $inversionProduccion * 0.16;
-
-// 5. Leaderboard
+// Leaderboard
 $leaderboard = $pdo->query("
-    SELECT u.nombre, SUM(p.total) as total_vendido, COUNT(p.id) as num_pedidos
+    SELECT u.nombre, SUM(p.total) as total_vendido
     FROM pedidos p
     JOIN usuarios_admin u ON p.usuario_id = u.id
-    WHERE MONTH(p.fecha_pedido) = $mes_actual AND p.status != 'Cancelado'
-    GROUP BY u.id
-    ORDER BY total_vendido DESC
-    LIMIT 5
+    WHERE p.fecha_pedido $rango_sql AND p.status != 'Cancelado'
+    GROUP BY u.id ORDER BY total_vendido DESC LIMIT 5
 ")->fetchAll();
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <title>Dashboard | AHD Clean</title>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
     <style>
-        /* Base Grid */
-        .metricas-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
-            gap: 15px; 
-            margin-bottom: 25px; 
-        }
-        .card.kpi { padding: 20px; border-radius: 12px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px; }
-        .kpi-icon { width: 45px; height: 45px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
-        .kpi-data small { color: #718096; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; display: block; }
-        .kpi-data .numero { font-size: 1.2rem; font-weight: 800; color: #2d3748; }
+        .filter-bar { background: white; padding: 20px; border-radius: 15px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .filter-form { display: flex; gap: 10px; align-items: flex-end; }
+        .metricas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .card.kpi { padding: 20px; border-radius: 15px; background: #fff; display: flex; align-items: center; gap: 15px; border: 1px solid #f1f5f9; }
+        .kpi-icon { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         
-        /* Colores */
+        /* Proyecciones de Retorno */
+        .retorno-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 25px; }
+        .retorno-card { background: white; padding: 20px; border-radius: 15px; border: 1px solid #e2e8f0; position: relative; overflow: hidden; }
+        .retorno-card::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; }
+        .card-retail::before { background: #38a169; }
+        .card-masivo::before { background: #3182ce; }
+        
         .bg-blue { background: #ebf8ff; color: #3182ce; }
         .bg-green { background: #f0fff4; color: #38a169; }
-        .bg-purple { background: #faf5ff; color: #805ad5; }
         .bg-orange { background: #fffaf0; color: #dd6b20; }
         .bg-red { background: #fff5f5; color: #e53e3e; }
-        .bg-teal { background: #e6fffa; color: #319795; }
-        .bg-yellow { background: #fffff0; color: #b7791f; }
-
-        .dashboard-layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-top: 20px; }
-        .status-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
-        .badge-count { background: #edf2f7; padding: 2px 10px; border-radius: 10px; font-weight: bold; font-size: 0.85rem; }
-
-        .proyeccion-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .proyeccion-item {
-            padding: 15px;
-            border: 1px solid #edf2f7;
-            border-radius: 10px;
-            background: #fdfdfd;
-        }
-
-        /* --- RESPONSIVIDAD SMARTPHONES --- */
-        @media (max-width: 768px) {
-            .dashboard-layout { grid-template-columns: 1fr; }
-            .header { flex-direction: column; align-items: flex-start !important; gap: 15px; }
-            .user-info-badge { width: 100%; text-align: center; }
-            .card { overflow-x: auto; }
-            table { min-width: 400px; }
-            .main { padding: 15px; }
-            h1 { font-size: 1.5rem; }
-        }
+        
+        #custom-dates { display: <?php echo $periodo == 'custom' ? 'flex' : 'none'; ?>; gap: 10px; }
     </style>
 </head>
 <body>
-    <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     <?php include 'sidebar.php'; ?>
     
     <div class="main">
-        <div class="header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <div>
-                <h1>Hola, <?php echo explode(' ', $_SESSION['admin_nombre'])[0]; ?> 👋</h1>
-                <p style="color: #718096;">Resumen ejecutivo AHD Clean.</p>
-            </div>
-            <div class="user-info-badge" style="background:white; padding:10px; border-radius:10px; border:1px solid #eee;">
-                <i class="fas fa-user-shield"></i> <?php echo $_SESSION['admin_rol']; ?>
+        <div class="header" style="margin-bottom: 25px;">
+            <h1>Dashboard de Control</h1>
+            <p style="color: #718096;"><i class="fas fa-chart-pie"></i> Analizando periodo: <strong><?php echo $titulo_filtro; ?></strong></p>
+        </div>
+
+        <div class="filter-bar">
+            <form action="" method="GET" class="filter-form">
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="font-size:0.7rem; font-weight:bold; color:#718096;">PERIODO</label>
+                    <select name="periodo" class="filter-input" onchange="this.form.periodo.value=='custom' ? document.getElementById('custom-dates').style.display='flex' : this.form.submit()" style="padding:8px; border-radius:8px; border:1px solid #cbd5e0;">
+                        <option value="mes" <?php echo $periodo == 'mes' ? 'selected' : ''; ?>>Mensual</option>
+                        <option value="trimestre" <?php echo $periodo == 'trimestre' ? 'selected' : ''; ?>>Trimestral</option>
+                        <option value="custom" <?php echo $periodo == 'custom' ? 'selected' : ''; ?>>Personalizado</option>
+                    </select>
+                </div>
+
+                <div id="custom-dates">
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <label style="font-size:0.7rem; font-weight:bold; color:#718096;">DESDE</label>
+                        <input type="date" name="f_inicio" value="<?php echo $fecha_inicio; ?>" style="padding:7px; border-radius:8px; border:1px solid #cbd5e0;">
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <label style="font-size:0.7rem; font-weight:bold; color:#718096;">HASTA</label>
+                        <input type="date" name="f_fin" value="<?php echo $fecha_fin; ?>" style="padding:7px; border-radius:8px; border:1px solid #cbd5e0;">
+                    </div>
+                    <button type="submit" class="btn-filter" style="background:#3182ce; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; align-self:flex-end;"><i class="fas fa-search"></i></button>
+                </div>
+            </form>
+            <div style="text-align:right;">
+                <small style="color:#718096; font-weight:bold;">FECHAS:</small><br>
+                <strong><?php echo date('d/m/Y', strtotime($fecha_inicio)); ?> al <?php echo date('d/m/Y', strtotime($fecha_fin)); ?></strong>
             </div>
         </div>
-        
+
         <div class="metricas-grid">
             <div class="card kpi">
-                <div class="kpi-icon bg-blue"><i class="fas fa-dollar-sign"></i></div>
-                <div class="kpi-data">
-                    <small>Ventas Mes</small>
-                    <div class="numero">$<?php echo number_format($ingresosMes, 2); ?></div>
-                </div>
+                <div class="kpi-icon bg-blue"><i class="fas fa-cash-register"></i></div>
+                <div><small style="color:#718096; font-size:0.7rem; font-weight:bold;">INGRESOS</small><div style="font-size:1.2rem; font-weight:800;">$<?php echo number_format($ingresosPeriodo, 2); ?></div></div>
             </div>
             <div class="card kpi">
-                <div class="kpi-icon bg-orange"><i class="fas fa-vial"></i></div>
-                <div class="kpi-data">
-                    <small>Inversión Producción</small>
-                    <div class="numero">$<?php echo number_format($inversionProduccion, 2); ?></div>
-                </div>
+                <div class="kpi-icon bg-orange"><i class="fas fa-flask"></i></div>
+                <div><small style="color:#718096; font-size:0.7rem; font-weight:bold;">INVERSIÓN</small><div style="font-size:1.2rem; font-weight:800;">$<?php echo number_format($inversionProduccion, 2); ?></div></div>
             </div>
             <div class="card kpi">
-                <div class="kpi-icon <?php echo $balanceNeto >= 0 ? 'bg-teal' : 'bg-red'; ?>">
-                    <i class="fas fa-exchange-alt"></i>
-                </div>
-                <div class="kpi-data">
-                    <small>Flujo Neto</small>
-                    <div class="numero" style="color: <?php echo $balanceNeto >= 0 ? '#38a169' : '#e53e3e'; ?>">
-                        $<?php echo number_format($balanceNeto, 2); ?>
-                    </div>
-                </div>
-            </div>
-            <div class="card kpi">
-                <div class="kpi-icon bg-yellow"><i class="fas fa-boxes"></i></div>
-                <div class="kpi-data">
-                    <small>Capital en Stock</small>
-                    <div class="numero">$<?php echo number_format($valorInventarioProducido, 2); ?></div>
-                </div>
+                <div class="kpi-icon <?php echo $balanceNeto >= 0 ? 'bg-green' : 'bg-red'; ?>"><i class="fas fa-wallet"></i></div>
+                <div><small style="color:#718096; font-size:0.7rem; font-weight:bold;">BALANCE</small><div style="font-size:1.2rem; font-weight:800;">$<?php echo number_format($balanceNeto, 2); ?></div></div>
             </div>
         </div>
 
-        <div class="dashboard-layout">
-            <div class="card">
-                <div style="margin-bottom: 20px;">
-                    <h3 style="margin:0;"><i class="fas fa-trophy" style="color: #ecc94b;"></i> Top Vendedores</h3>
+        <h3 style="margin: 30px 0 15px 0;"><i class="fas fa-chart-line"></i> Proyección de Retorno sobre Inversión</h3>
+        <div class="retorno-container">
+            <div class="retorno-card card-retail">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <small style="color:#38a169; font-weight:800;">RETAIL (1L - 5L)</small>
+                        <div style="font-size: 1.8rem; font-weight:900; color:#2d3748; margin: 5px 0;">$<?php echo number_format($inversionProduccion * 1.45, 2); ?></div>
+                    </div>
+                    <span style="background:#f0fff4; color:#38a169; padding:5px 10px; border-radius:8px; font-size:0.8rem; font-weight:bold;">+45% Margen</span>
                 </div>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="text-align: left; color: #a0aec0; font-size: 0.8rem; border-bottom: 2px solid #edf2f7;">
-                            <th style="padding: 10px;">Nombre</th>
-                            <th>Pedidos</th>
-                            <th style="text-align: right;">Total</th>
+                <p style="font-size:0.8rem; color:#718096; margin-top:10px;">Estimación si el 100% de los litros producidos se venden en presentaciones pequeñas.</p>
+            </div>
+
+            <div class="retorno-card card-masivo">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <small style="color:#3182ce; font-weight:800;">MAYOREO (20L+)</small>
+                        <div style="font-size: 1.8rem; font-weight:900; color:#2d3748; margin: 5px 0;">$<?php echo number_format($inversionProduccion * 1.20, 2); ?></div>
+                    </div>
+                    <span style="background:#ebf8ff; color:#3182ce; padding:5px 10px; border-radius:8px; font-size:0.8rem; font-weight:bold;">+20% Margen</span>
+                </div>
+                <p style="font-size:0.8rem; color:#718096; margin-top:10px;">Estimación si el volumen se desplaza rápidamente mediante ventas industriales o garrafones.</p>
+            </div>
+
+            <div class="retorno-card" style="border-color:#e9d8fd; background:#faf5ff;">
+                <small style="color:#805ad5; font-weight:800;">IVA ACREDITABLE (FISCAL)</small>
+                <div style="font-size: 1.8rem; font-weight:900; color:#2d3748; margin: 5px 0;">$<?php echo number_format($ivaAcreditable, 2); ?></div>
+                <p style="font-size:0.8rem; color:#718096;">Monto que puedes deducir de tus impuestos por la compra de insumos.</p>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:25px; margin-top:30px;">
+            <div class="card" style="background:white; padding:20px; border-radius:15px;">
+                <h3><i class="fas fa-star" style="color:#ecc94b;"></i> Top Vendedores</h3>
+                <table style="width:100%; border-collapse:collapse; margin-top:15px;">
+                    <?php foreach($leaderboard as $v): ?>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:10px 0;"><strong><?php echo $v['nombre']; ?></strong></td>
+                            <td style="text-align:right; font-weight:bold;">$<?php echo number_format($v['total_vendido'], 2); ?></td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach($leaderboard as $v): ?>
-                        <tr style="border-bottom: 1px solid #f8fafc;">
-                            <td style="padding: 12px 0;"><strong><?php echo $v['nombre']; ?></strong></td>
-                            <td><?php echo $v['num_pedidos']; ?></td>
-                            <td style="text-align: right; font-weight: bold;">$<?php echo number_format($v['total_vendido'], 2); ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
+                    <?php endforeach; ?>
                 </table>
             </div>
-
-            <div class="card">
-                <h3><i class="fas fa-industry"></i> Operaciones</h3>
-                <div style="margin: 20px 0;">
-                    <div class="status-row">
-                        <span><i class="fas fa-microscope" style="color:#805ad5;"></i> Fórmulas</span>
-                        <span class="badge-count"><?php echo $totalFormulas; ?></span>
-                    </div>
-                    <div class="status-row">
-                        <span><i class="fas fa-hourglass-half" style="color:#dd6b20;"></i> Pendientes</span>
-                        <span class="badge-count" style="color:#dd6b20;"><?php echo $stats_prod['pendientes'] ?? 0; ?></span>
-                    </div>
-                    <div class="status-row">
-                        <span><i class="fas fa-check-double" style="color:#38a169;"></i> Finalizadas</span>
-                        <span class="badge-count" style="color:#38a169;"><?php echo $stats_prod['finalizadas'] ?? 0; ?></span>
-                    </div>
-                    <div class="status-row" style="border:none;">
-                        <span><i class="fas fa-exclamation-triangle" style="color:#e53e3e;"></i> Stock Crítico</span>
-                        <span class="badge-count" style="background:#fff5f5; color:#e53e3e;"><?php echo $insumosCriticos; ?></span>
-                    </div>
-                </div>
-
-                <div style="display: flex; justify-content: space-around; background: #f8fafc; padding: 15px; border-radius: 10px;">
-                    <div style="text-align: center;">
-                        <small style="display:block; color:#718096;">Productos</small>
-                        <strong><?php echo $totalProductos; ?></strong>
-                    </div>
-                    <div style="text-align: center;">
-                        <small style="display:block; color:#718096;">Admins</small>
-                        <strong><?php echo $totalUsuarios; ?></strong>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card" style="margin-top: 20px;">
-            <h3 style="margin-bottom: 5px;"><i class="fas fa-chart-line"></i> Proyección de Retorno sobre Lotes (Mes Actual)</h3>
-            <p style="font-size: 0.85rem; color: #718096;">Estimación basada en la inversión de <strong>$<?php echo number_format($inversionProduccion, 2); ?></strong> en insumos.</p>
             
-            <div class="proyeccion-container">
-                <div class="proyeccion-item">
-                    <small style="font-weight: 700; color: #718096;">PROYECCIÓN MAYOREO (20L)</small>
-                    <div class="numero" style="font-size: 1.4rem; margin: 5px 0;">$<?php echo number_format($inversionProduccion * 1.20, 2); ?></div>
-                    <span style="font-size: 0.75rem; color: #38a169; font-weight: bold;">+20% Margen Est.</span>
-                </div>
-                
-                <div class="proyeccion-item" style="background: #f0fff4; border-color: #c6f6d5;">
-                    <small style="font-weight: 700; color: #718096;">PROYECCIÓN RETAIL (1L/5L)</small>
-                    <div class="numero" style="font-size: 1.4rem; margin: 5px 0;">$<?php echo number_format($inversionProduccion * 1.45, 2); ?></div>
-                    <span style="font-size: 0.75rem; color: #38a169; font-weight: bold;">+45% Margen Est.</span>
-                </div>
-
-                <div class="proyeccion-item" style="background: #ebf8ff; border-color: #bee3f8;">
-                    <small style="font-weight: 700; color: #718096;">IVA ACREDITABLE (Deducción)</small>
-                    <div class="numero" style="font-size: 1.4rem; margin: 5px 0; color: #3182ce;">$<?php echo number_format($ivaAcreditable, 2); ?></div>
-                    <span style="font-size: 0.75rem; color: #3182ce;">Saldo a favor para ISR/IVA</span>
+            <div class="card" style="background:white; padding:20px; border-radius:15px;">
+                <h3><i class="fas fa-tasks"></i> Resumen de Producción</h3>
+                <div style="margin-top:15px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <span>Mezclas en Espera</span>
+                        <span style="font-weight:bold; color:#dd6b20;"><?php echo $stats_prod['pendientes'] ?? 0; ?></span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Mezclas Finalizadas</span>
+                        <span style="font-weight:bold; color:#38a169;"><?php echo $stats_prod['finalizadas'] ?? 0; ?></span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <script src="../js/admin.js"></script>
 </body>
 </html>
