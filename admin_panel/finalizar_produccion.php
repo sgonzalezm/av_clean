@@ -10,7 +10,7 @@ $mensaje = "";
 
 // --- LÓGICA DE FINALIZACIÓN Y CARGA A INVENTARIO POR FÓRMULA ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_finalizacion'])) {
-    $cantidades_reales = $_POST['cantidad_real']; // Array [id_producto => litros_obtenidos]
+    $cantidades_reales = $_POST['cantidad_real']; 
     
     try {
         $pdo->beginTransaction();
@@ -24,14 +24,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_finalizacion
                 $prod_data = $stmt_info->fetch();
 
                 if ($prod_data && $prod_data['id_formula_maestra']) {
+                    $id_formula_m = $prod_data['id_formula_maestra'];
+
                     // 2. ACTUALIZAR EL STOCK EN EL TANQUE (Fórmula Maestra)
-                    // Ya no sumamos a productos.stock_actual, sino a formulas_maestras.stock_litros_disponibles
                     $stmt_formula = $pdo->prepare("
                         UPDATE formulas_maestras 
                         SET stock_litros_disponibles = COALESCE(stock_litros_disponibles, 0) + ? 
                         WHERE id = ?
                     ");
-                    $stmt_formula->execute([$litros, $prod_data['id_formula_maestra']]);
+                    $stmt_formula->execute([$litros, $id_formula_m]);
+
+                    // --- PASO 2.5: DESCONTAR INSUMOS DEL ALMACÉN (NUEVA LÓGICA) ---
+                    // Buscamos los ingredientes y sus proporciones para esta fórmula
+                    $stmt_ing = $pdo->prepare("SELECT insumo_id, cantidad_por_litro FROM formulas WHERE id_formula_maestra = ?");
+                    $stmt_ing->execute([$id_formula_m]);
+                    $ingredientes = $stmt_ing->fetchAll();
+
+                    foreach ($ingredientes as $ing) {
+                        // Calculamos cuánto se usó basado en los litros finales obtenidos
+                        $cantidad_a_descontar = $ing['cantidad_por_litro'] * $litros;
+
+                        // Ejecutamos la resta en la tabla de insumos
+                        $stmt_resta = $pdo->prepare("
+                            UPDATE insumos 
+                            SET stock_actual = stock_actual - ? 
+                            WHERE id = ?
+                        ");
+                        $stmt_resta->execute([$cantidad_a_descontar, $ing['insumo_id']]);
+                    }
                 }
 
                 // 3. Registrar en el detalle de la orden cuánto se obtuvo realmente (Auditoría)
@@ -41,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_finalizacion
         }
 
         // 4. Cambiar estado de la orden a TERMINADO
-        $stmt_status = $pdo->prepare("UPDATE ordenes_produccion SET estado = 'TERMINADO', observaciones = CONCAT(observaciones, ' | Litros cargados a tanque el ', NOW()) WHERE id = ?");
+        $stmt_status = $pdo->prepare("UPDATE ordenes_produccion SET estado = 'TERMINADO', observaciones = CONCAT(observaciones, ' | Litros cargados y químicos descontados el ', NOW()) WHERE id = ?");
         $stmt_status->execute([$id_orden]);
 
         $pdo->commit();
@@ -50,12 +70,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_finalizacion
 
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        $mensaje = "<div class='alert error' style='background:#fee2e2; color:#b91c1c; padding:15px; border-radius:8px;'>Error al cargar a tanque: " . $e->getMessage() . "</div>";
+        $mensaje = "<div class='alert error' style='background:#fee2e2; color:#b91c1c; padding:15px; border-radius:8px;'>Error al finalizar: " . $e->getMessage() . "</div>";
     }
 }
 
 // --- CONSULTA DE DATOS DE LA ORDEN ACTUALIZADA ---
-// Ahora traemos el stock disponible en el tanque (Fórmula)
 $stmt = $pdo->prepare("
     SELECT odp.*, p.nombre, f.stock_litros_disponibles as stock_tanque 
     FROM orden_detalle_productos odp 
@@ -66,7 +85,6 @@ $stmt = $pdo->prepare("
 $stmt->execute([$id_orden]);
 $productos_orden = $stmt->fetchAll();
 
-// Verificar que la orden no esté ya terminada
 $check = $pdo->prepare("SELECT estado FROM ordenes_produccion WHERE id = ?");
 $check->execute([$id_orden]);
 $orden_info = $check->fetch();
@@ -75,6 +93,7 @@ if ($orden_info['estado'] == 'TERMINADO') {
     die("Esta orden ya fue finalizada y los litros están en el tanque.");
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -87,8 +106,6 @@ if ($orden_info['estado'] == 'TERMINADO') {
         .card-finalizar { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-top: 5px solid #28a745; }
         .row-producto { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee; }
         .input-real { width: 100%; padding: 10px; border: 2px solid #cbd5e0; border-radius: 6px; font-weight: bold; font-size: 1.1rem; text-align: center; }
-        .input-real:focus { border-color: #28a745; outline: none; }
-        .label-teorico { color: #718096; font-size: 0.85rem; font-weight: 600; }
         .badge-tanque { background: #ebf8ff; color: #2b6cb0; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; }
     </style>
 </head>
@@ -108,10 +125,10 @@ if ($orden_info['estado'] == 'TERMINADO') {
         <?php echo $mensaje; ?>
 
         <div class="card-finalizar">
-            <div style="background: #fffaf0; border-left: 4px solid #ed8936; padding: 15px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
-                <p style="margin: 0; color: #7b341e; font-size: 0.95rem;">
-                    <strong><i class="fas fa-info-circle"></i> Nueva Lógica de Inventario:</strong><br>
-                    Al confirmar, los litros reales se sumarán al <strong>tanque de la fórmula</strong>. Esto permitirá vender cualquier presentación (1L, 5L, 20L) de forma dinámica.
+            <div style="background: #f0fff4; border-left: 4px solid #38a169; padding: 15px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
+                <p style="margin: 0; color: #22543d; font-size: 0.95rem;">
+                    <strong><i class="fas fa-check-double"></i> Control de Stock Automatizado:</strong><br>
+                    Al confirmar, el sistema sumará el producto al tanque central y <strong>restará automáticamente</strong> los químicos usados de tu almacén de insumos.
                 </p>
             </div>
 
@@ -126,32 +143,22 @@ if ($orden_info['estado'] == 'TERMINADO') {
                 <div class="row-producto">
                     <div>
                         <strong><?php echo htmlspecialchars($p['nombre']); ?></strong><br>
-                        <span class="label-teorico">
-                            <i class="fas fa-database"></i> En Tanque: 
-                            <span class="badge-tanque"><?php echo number_format($p['stock_tanque'], 2); ?> L</span>
-                        </span>
+                        <span class="badge-tanque"><i class="fas fa-database"></i> Tanque: <?php echo number_format($p['stock_tanque'], 2); ?> L</span>
                     </div>
                     <div style="text-align: center; color: #4c51bf; font-weight: 800; font-size: 1.1rem;">
                         <?php echo number_format($p['cantidad_litros'], 2); ?>
                     </div>
                     <div>
-                        <input type="number" 
-                               name="cantidad_real[<?php echo $p['id_producto']; ?>]" 
+                        <input type="number" name="cantidad_real[<?php echo $p['id_producto']; ?>]" 
                                value="<?php echo $p['cantidad_litros']; ?>" 
                                step="0.01" min="0" class="input-real" required>
                     </div>
                 </div>
                 <?php endforeach; ?>
 
-                <div style="margin-top: 30px; background: #f0fff4; padding: 20px; border-radius: 8px; border: 1px solid #c6f6d5;">
-                    <p style="margin: 0; color: #22543d; font-size: 0.9rem; line-height: 1.4;">
-                        <i class="fas fa-check-circle"></i> <strong>Verificación de Calidad:</strong> Al hacer clic en el botón, confirmas que la mezcla cumple con los estándares y los litros están listos en el área de envasado. El estado pasará a <strong>TERMINADO</strong>.
-                    </p>
-                </div>
-
                 <button type="submit" name="confirmar_finalizacion" class="btn" 
                         style="width: 100%; background: #28a745; color: white; border: none; padding: 20px; border-radius: 10px; font-weight: 800; font-size: 1.2rem; margin-top: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 15px; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);">
-                    <i class="fas fa-truck-loading"></i> CARGAR LITROS A TANQUE CENTRAL
+                    <i class="fas fa-truck-loading"></i> ACTUALIZAR INVENTARIO Y TANQUES
                 </button>
             </form>
         </div>

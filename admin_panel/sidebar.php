@@ -34,7 +34,7 @@ function claseActiva($pagina) {
         <i class="fas fa-tachometer-alt"></i> Dashboard
     </a>
     <a href="metricos.php" class="<?php echo claseActiva('metricos.php'); ?>">
-        <i class="fas fa-tachometer-alt"></i> Métricas
+        <i class="fas fa-chart-line"></i> Métricas
     </a>
     
     <!-- Solo para editores y admins -->
@@ -45,11 +45,8 @@ function claseActiva($pagina) {
     <a href="cartera.php" class="<?php echo claseActiva('cartera.php'); ?>">
         <i class="fas fa-address-book"></i> Clientes
     </a>
-    <a href="proceso.php" class="<?php echo claseActiva('proceso.php'); ?>">
-        <i class="fas fa-tasks"></i> Procesos
-    </a>
     <a href="compras.php" class="<?php echo claseActiva('compras.php'); ?>">
-        <i class="fas fa-shopping-bag"></i> Compras
+        <i class="fas fa-gavel"></i> Operaciones
     </a>
     <?php endif; ?>
     

@@ -182,6 +182,15 @@ $bajo_stock = $pdo->query("SELECT COUNT(*) FROM insumos WHERE stock_actual < 5")
                 </div>
             </a>
 
+            <a href="ordenes_trabajo.php" class="card-link">
+                <div class="card clickable">
+                    <i class="fas fa-tasks fa-2x" style="color: #686563;"></i>
+                    <h3>Ordenes de trabajo</h3>
+                    <p>Ordenes de trabajo para ventas y surtido</p>
+                    <span class="btn-editar-mini">Crear Orden <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+
             <a href="gasto_nuevo.php" class="card-link">
                 <div class="card clickable">
                     <i class="fas fa-toolbox fa-2x" style="color: #686563;"></i>
