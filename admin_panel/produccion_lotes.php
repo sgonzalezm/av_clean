@@ -16,7 +16,7 @@ $query_formulas = "
 ";
 $formulas = $pdo->query($query_formulas)->fetchAll();
 
-// 2. LÓGICA DE CÁLCULO DE INSUMOS (INTELIGENTE)
+// 2. LÓGICA DE CÁLCULO DE INSUMOS
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['calcular'])) {
     $lotes = $_POST['lote']; 
     $insumos_necesarios = [];
@@ -24,7 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['calcular'])) {
     foreach ($lotes as $id_form => $litros) {
         $litros = floatval($litros);
         if ($litros > 0) {
-            // Traemos el STOCK actual de cada insumo también
             $stmt = $pdo->prepare("
                 SELECT f.insumo_id, f.cantidad_por_litro, i.nombre as insumo, 
                        i.unidad_medida, i.precio_unitario, i.stock_actual as stock_actual
@@ -44,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['calcular'])) {
                         'id_insumo' => $id_insumo,
                         'nombre' => $c['insumo'],
                         'unidad' => $c['unidad_medida'],
-                        'stock_actual' => $c['stock_actual'], // Guardamos stock actual
+                        'stock_actual' => $c['stock_actual'],
                         'cantidad_neta_total' => 0,
                         'total_a_comprar' => 0,
                         'precio_base_u' => $c['precio_unitario'],
@@ -56,17 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['calcular'])) {
         }
     }
 
-    // LÓGICA DE OPTIMIZACIÓN: Solo comprar lo que falta
     foreach ($insumos_necesarios as $id => &$item) {
-        // ¿Cuánto nos falta realmente? (Necesidad - Lo que hay en estante)
         $faltante_real = $item['cantidad_neta_total'] - $item['stock_actual'];
 
         if ($faltante_real <= 0) {
-            // Tenemos de sobra, no comprar nada
             $item['total_a_comprar'] = 0;
             $item['costo_final'] = 0;
         } else {
-            // Falta material, buscamos la mejor presentación para comprar el faltante
             $stmt_pres = $pdo->prepare("SELECT cantidad_capacidad, precio_presentacion FROM insumo_presentaciones WHERE id_insumo = ? ORDER BY cantidad_capacidad ASC");
             $stmt_pres->execute([$id]);
             $presentaciones = $stmt_pres->fetchAll(PDO::FETCH_ASSOC);
@@ -101,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['calcular'])) {
     $_SESSION['ultimo_calculo_lotes'] = $lotes;
 }
 
-// 3. CONFIRMACIÓN (Igual que antes pero guardando la orden)
+// 3. CONFIRMACIÓN Y GUARDADO
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'])) {
     $reporte_confirmado = $_SESSION['ultimo_reporte_ahd'] ?? [];
     $lotes_confirmados = $_SESSION['ultimo_calculo_lotes'] ?? [];
@@ -127,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
 
             $stmt_di = $pdo->prepare("INSERT INTO orden_detalle_insumos (id_orden, id_insumo, cantidad_usada, precio_al_momento) VALUES (?, ?, ?, ?)");
             foreach ($reporte_confirmado as $ins) {
-                $stmt_di->execute([$id_orden, $ins['id_insumo'], $ins['total_a_comprar'], ($ins['costo_final'] > 0 ? $ins['costo_final']/$ins['total_a_comprar'] : $ins['precio_base_u'])]);
+                $stmt_di->execute([$id_orden, $ins['id_insumo'], $ins['total_a_comprar'], ($ins['total_a_comprar'] > 0 ? $ins['costo_final']/$ins['total_a_comprar'] : $ins['precio_base_u'])]);
             }
 
             $pdo->commit();
@@ -136,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
             $reporte = []; 
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            $error = "Error crítico: " . $e->getMessage();
+            $error = "Error: " . $e->getMessage();
         }
     }
 }
@@ -144,86 +139,147 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>Producción Inteligente | AHD Clean</title>
+    <title>Producción lotes | AHD Clean</title>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
     <style>
-        .main { padding: 25px; }
-        .card-formula { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 12px 20px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
-        .input-lote { width: 100px; padding: 8px; border: 2px solid #edf2f7; border-radius: 8px; text-align: center; font-weight: bold; }
-        .header-prod { background: #4c51bf; color: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
-        .badge-stock { background: #f0fff4; color: #2f855a; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; border: 1px solid #c6f6d5; }
+        :root { --accent: #4c51bf; --dark: #1e293b; --success: #2f855a; }
+        body { background: #f8fafc; margin: 0; font-family: sans-serif; }
+
+        /* Estilos Header Mobile */
+        .header-mobile { display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--dark); color: white; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        
+        .main { padding: 25px; transition: 0.3s; }
+
+        @media (max-width: 992px) {
+            .header-mobile { display: flex; }
+            .main { margin-left: 0 !important; padding: 80px 15px 120px 15px !important; }
+            .sidebar { position: fixed; left: -260px; z-index: 3000; }
+            .sidebar.active { left: 0; }
+            .hide-mobile { display: none !important; }
+        }
+
+        .header-prod { background: var(--accent); color: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; }
+        
+        /* Grid de fórmulas */
+        .formulas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+        .card-formula { background: white; padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        
+        /* Inputs mejorados */
+        .input-lote { width: 90px; height: 45px; padding: 5px; border: 2px solid #edf2f7; border-radius: 10px; text-align: center; font-weight: 800; font-size: 1.1rem; }
+        .input-lote:focus { border-color: var(--accent); outline: none; background: #f0f5ff; }
+
+        /* Reporte de Insumos */
+        .report-container { overflow-x: auto; background: white; border-radius: 15px; border: 1px solid #e2e8f0; margin-bottom: 30px; }
+        .report-table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        .report-table th { background: #f8fafc; padding: 15px; text-align: left; color: #64748b; font-size: 0.8rem; text-transform: uppercase; }
+        .report-table td { padding: 15px; border-top: 1px solid #f1f5f9; }
+
+        .badge-stock { background: #f0fff4; color: var(--success); padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; border: 1px solid #c6f6d5; }
+        .badge-buy { background: #ebf8ff; color: #2b6cb0; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; }
+        
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2500; }
+        .overlay.active { display: block; }
     </style>
 </head>
 <body>
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <div class="header-mobile">
+        <button onclick="toggleMenu()" style="background:none; border:none; color:white; font-size:1.5rem;"><i class="fas fa-bars"></i></button>
+        <span style="font-weight: 900; letter-spacing: 1px;">AHD PRODUCCIÓN</span>
+        <i class="fas fa-microchip"></i>
+    </div>
+
     <?php include 'sidebar.php'; ?>
+
     <div class="main">
         <div class="header-prod">
             <h1><i class="fas fa-microchip"></i> Producción Inteligente</h1>
-            <p>El sistema ahora descuenta lo que ya tienes en bodega antes de pedirte comprar.</p>
+            <p>Calcula lotes considerando el stock actual en estante.</p>
         </div>
 
-        <?php if($mensaje_exito) echo "<div class='alert exito' style='background:#f0fff4; color:#2f855a; padding:15px; border-radius:10px; margin-bottom:20px;'><i class='fas fa-check-circle'></i> $mensaje_exito</div>"; ?>
+        <?php if($mensaje_exito): ?>
+            <div style="background:#f0fff4; color:var(--success); padding:20px; border-radius:15px; margin-bottom:25px; border: 1px solid #c6f6d5;">
+                <i class="fas fa-check-circle"></i> <?php echo $mensaje_exito; ?>
+            </div>
+        <?php endif; ?>
 
         <?php if (!empty($reporte)): ?>
-        <div class="card" style="background: #fff; padding: 25px; border-radius: 12px; border-left: 6px solid #4c51bf; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-            <h3><i class="fas fa-clipboard-list"></i> Análisis de Insumos</h3>
-            <table style="width:100%; border-collapse: collapse; margin-top:15px;">
-                <thead>
-                    <tr style="text-align: left; color: #718096; border-bottom: 2px solid #edf2f7;">
-                        <th style="padding: 10px;">Insumo</th>
-                        <th>En Almacén</th>
-                        <th>Necesario</th>
-                        <th>A Comprar</th>
-                        <th>Costo</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach($reporte as $item): ?>
-                    <tr style="border-bottom: 1px solid #f7fafc;">
-                        <td style="padding: 12px;"><strong><?php echo htmlspecialchars($item['nombre']); ?></strong></td>
-                        <td><span class="badge-stock"><?php echo number_format($item['stock_actual'], 2); ?></span></td>
-                        <td><?php echo number_format($item['cantidad_neta_total'], 2); ?></td>
-                        <td>
-                            <?php if($item['total_a_comprar'] > 0): ?>
-                                <span style="color:#2b6cb0; font-weight:bold;"><i class="fas fa-shopping-cart"></i> <?php echo number_format($item['total_a_comprar'], 2); ?></span>
-                            <?php else: ?>
-                                <span style="color:#38a169; font-weight:bold;"><i class="fas fa-check-circle"></i> Suficiente</span>
-                            <?php endif; ?>
-                        </td>
-                        <td><strong>$<?php echo number_format($item['costo_final'], 2); ?></strong></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-            <form method="POST" style="margin-top:20px; text-align:right;">
-                <button type="submit" name="confirmar_fabricacion" style="background:#4c51bf; color:white; border:none; padding:15px 30px; border-radius:10px; cursor:pointer; font-weight:bold; font-size:1rem;">
+        <div class="card" style="background:white; padding:25px; border-radius:15px; border-left: 6px solid var(--accent); margin-bottom: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <h3 style="margin-top:0;"><i class="fas fa-clipboard-list"></i> Necesidades de Compra</h3>
+            <div class="report-container">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Insumo</th>
+                            <th>Stock Bodega</th>
+                            <th>Necesario</th>
+                            <th>A Comprar</th>
+                            <th>Costo Estimado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($reporte as $item): ?>
+                        <tr>
+                            <td><strong><?php echo htmlspecialchars($item['nombre']); ?></strong></td>
+                            <td><span class="badge-stock"><?php echo number_format($item['stock_actual'], 2); ?> <?php echo $item['unidad']; ?></span></td>
+                            <td><?php echo number_format($item['cantidad_neta_total'], 2); ?></td>
+                            <td>
+                                <?php if($item['total_a_comprar'] > 0): ?>
+                                    <span class="badge-buy"><i class="fas fa-shopping-cart"></i> <?php echo number_format($item['total_a_comprar'], 2); ?></span>
+                                <?php else: ?>
+                                    <span style="color:var(--success); font-weight:bold;"><i class="fas fa-check-circle"></i> Suficiente</span>
+                                <?php endif; ?>
+                            </td>
+                            <td><strong>$<?php echo number_format($item['costo_final'], 2); ?></strong></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <form method="POST">
+                <button type="submit" name="confirmar_fabricacion" style="width:100%; background:var(--accent); color:white; border:none; padding:20px; border-radius:12px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow: 0 4px 12px rgba(76, 81, 191, 0.3);">
                     GENERAR ORDEN DE PRODUCCIÓN
                 </button>
             </form>
         </div>
         <?php endif; ?>
 
-        <div class="card" style="background:white; padding:25px; border-radius:12px;">
+        <div class="card" style="background:white; padding:25px; border-radius:15px; border: 1px solid #e2e8f0;">
             <form method="POST">
-                <h3 style="margin-bottom:20px;">Selecciona Volumen de Mezcla</h3>
-                <div style="max-height: 400px; overflow-y: auto;">
+                <h3 style="margin-top:0; margin-bottom:20px;"><i class="fas fa-fill-drip"></i> Configurar Lotes de Fabricación</h3>
+                <div class="formulas-grid">
                     <?php foreach($formulas as $f): ?>
                     <div class="card-formula">
-                        <label><strong><?php echo htmlspecialchars($f['nombre_formula']); ?></strong></label>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="number" name="lote[<?php echo $f['id_formula']; ?>]" class="input-lote" placeholder="0" step="0.1">
-                            <span style="color:#718096; font-weight:bold;">Lts</span>
+                        <label style="flex:1; font-weight:700; color:var(--dark);"><?php echo htmlspecialchars($f['nombre_formula']); ?></label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" 
+                                   name="lote[<?php echo $f['id_formula']; ?>]" 
+                                   class="input-lote" 
+                                   placeholder="0" 
+                                   step="0.1" 
+                                   value=""
+                                   onfocus="if(this.value=='') this.select();">
+                            <span style="color:#64748b; font-weight:bold; font-size:0.8rem;">LTS</span>
                         </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
-                <button type="submit" name="calcular" style="width:100%; background:#2d3748; color:white; border:none; padding:18px; margin-top:20px; border-radius:10px; font-weight:bold; cursor:pointer;">
-                    CALCULAR NECESIDADES REALES
+                <button type="submit" name="calcular" style="width:100%; background:var(--dark); color:white; border:none; padding:20px; margin-top:25px; border-radius:12px; font-weight:bold; font-size:1.1rem; cursor:pointer;">
+                    ANALIZAR Y CALCULAR INSUMOS
                 </button>
             </form>
         </div>
     </div>
+
+    <script>
+        function toggleMenu() {
+            document.querySelector('.sidebar').classList.toggle('active');
+            document.getElementById('overlay').classList.toggle('active');
+        }
+    </script>
 </body>
 </html>
