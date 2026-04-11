@@ -1,111 +1,91 @@
 <?php
+// 1. Limpieza de salida y configuración de errores
+ob_start(); // Inicia el búfer de salida para evitar el error "Some data has already been output"
+ini_set('display_errors', 0); // Desactivamos mostrar errores en pantalla para que no rompan el PDF
+error_reporting(E_ALL);
+
 require_once '../includes/session.php';
 require_once '../includes/conexion.php';
+require_once '../includes/fpdf.php'; 
+
 verificarSesion();
 
-if (!isset($_GET['id'])) {
-    die("ID de pedido no especificado.");
-}
+$id = $_GET['id'] ?? die("Sin ID");
 
-$pedido_id = $_GET['id'];
-
-// 1. Obtener datos de la cabecera del pedido
-$stmt = $pdo->prepare("SELECT * FROM pedidos WHERE id = ?");
-$stmt->execute([$pedido_id]);
+// Consulta de datos
+$stmt = $pdo->prepare("SELECT p.*, u.nombre as vendedor FROM pedidos p 
+                       LEFT JOIN usuarios_admin u ON p.usuario_id = u.id 
+                       WHERE p.id = ?");
+$stmt->execute([$id]);
 $pedido = $stmt->fetch();
 
-if (!$pedido) die("El pedido no existe.");
+$detalles = $pdo->prepare("SELECT * FROM detalle_pedido WHERE pedido_id = ?");
+$detalles->execute([$id]);
+$productos = $detalles->fetchAll();
 
-// 2. Obtener los productos del pedido
-$stmt_det = $pdo->prepare("SELECT * FROM detalle_pedido WHERE pedido_id = ?");
-$stmt_det->execute([$pedido_id]);
-$detalles = $stmt_det->fetchAll();
-?>
+// Función auxiliar para convertir texto a formato compatible con FPDF (ISO-8859-1)
+// reemplaza al viejo utf8_decode()
+function t($texto) {
+    return iconv('UTF-8', 'windows-1252//IGNORE', $texto);
+}
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Ticket #<?php echo $pedido_id; ?></title>
-    <style>
-        * { font-size: 12px; font-family: 'monospace'; }
-        body { width: 80mm; margin: 0; padding: 10px; }
-        .centrado { text-align: center; }
-        .empresa { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
-        .separador { border-top: 1px dashed #000; margin: 10px 0; }
-        table { width: 100%; border-collapse: collapse; }
-        .text-right { text-align: right; }
-        .total { font-size: 14px; font-weight: bold; }
-        
-        /* Botones para pantalla, se ocultan al imprimir */
-        @media print {
-            .no-print { display: none; }
-        }
-        .btn {
-            padding: 10px; background: #10b981; color: white; 
-            text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 2px;
-        }
-    </style>
-</head>
-<body>
+// Configuración del PDF
+$ancho = 58;
+$alto = 80 + (count($productos) * 8); 
 
-    <div class="no-print">
-        <a href="venta_nueva.php" class="btn" style="background:#64748b;">Nueva Venta</a>
-        <button onclick="window.print();" class="btn">Imprimir Manualmente</button>
-    </div>
+$pdf = new FPDF('P', 'mm', array($ancho, $alto));
+$pdf->SetMargins(4, 2, 4); 
+$pdf->SetAutoPageBreak(true, 2);
+$pdf->AddPage();
 
-    <div class="centrado">
-        <div class="empresa">AHD CLEAN</div>
-        <p>Expertos en Limpieza<br>
-        ventas@ahd-clean.com<br>
-        Fecha: <?php echo date("d/m/Y H:i", strtotime($pedido['fecha_pedido'])); ?></p>
-    </div>
+// --- DISEÑO DEL TICKET ---
+$pdf->SetFont('Courier', 'B', 12); // Usamos Courier que es más nativa para tickets
+$pdf->Cell(50, 6, 'AHD CLEAN', 0, 1, 'C');
 
-    <div class="separador"></div>
+$pdf->SetFont('Courier', '', 8);
+$pdf->Cell(50, 4, t('Expertos en Limpieza'), 0, 1, 'C');
+$pdf->Cell(50, 4, date("d/m/Y H:i"), 0, 1, 'C');
 
-    <p>Ticket: #<?php echo $pedido_id; ?><br>
-    Cliente: <?php echo htmlspecialchars($pedido['nombre']); ?><br>
-    Vendedor: <?php echo $_SESSION['admin_nombre']; ?></p>
+$pdf->Ln(2);
+$pdf->SetFont('Courier', 'B', 8);
+$pdf->Cell(50, 4, 'FOLIO: #' . $pedido['id'], 0, 1, 'L');
+$pdf->SetFont('Courier', '', 8);
+$pdf->Cell(50, 4, 'CLIENTE: ' . t(substr($pedido['nombre'], 0, 22)), 0, 1, 'L');
 
-    <div class="separador"></div>
+$pdf->Ln(1);
+$pdf->Cell(50, 0, '', 'T', 1);
+$pdf->Ln(1);
 
-    <table>
-        <thead>
-            <tr>
-                <th align="left">Cant.</th>
-                <th align="left">Producto</th>
-                <th align="right">Subt.</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($detalles as $d): ?>
-            <tr>
-                <td><?php echo $d['cantidad']; ?></td>
-                <td><?php echo htmlspecialchars($d['producto_nombre']); ?></td>
-                <td class="text-right">$<?php echo number_format($d['cantidad'] * $d['precio_unitario'], 2); ?></td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+// Tabla de productos
+$pdf->SetFont('Courier', 'B', 7);
+$pdf->Cell(8, 4, 'CAN', 0, 0, 'L');
+$pdf->Cell(28, 4, 'PRODUCTO', 0, 0, 'L');
+$pdf->Cell(14, 4, 'TOTAL', 0, 1, 'R');
+$pdf->Cell(50, 0, '', 'T', 1);
 
-    <div class="separador"></div>
+$pdf->SetFont('Courier', '', 7);
+foreach ($productos as $p) {
+    $pdf->Cell(8, 4, $p['cantidad'], 0, 0, 'L');
+    
+    $x = $pdf->GetX();
+    $y = $pdf->GetY();
+    $pdf->MultiCell(28, 4, t($p['producto_nombre']), 0, 'L');
+    $pdf->SetXY($x + 28, $y);
+    
+    $pdf->Cell(14, 4, '$' . number_format($p['precio_unitario'] * $p['cantidad'], 0), 0, 1, 'R');
+}
 
-    <table class="total">
-        <tr>
-            <td class="text-right">TOTAL:</td>
-            <td class="text-right">$<?php echo number_format($pedido['total'], 2); ?></td>
-        </tr>
-    </table>
+$pdf->Ln(2);
+$pdf->Cell(50, 0, '', 'T', 1);
+$pdf->SetFont('Courier', 'B', 10);
+$pdf->Cell(25, 6, 'TOTAL:', 0, 0, 'L');
+$pdf->Cell(25, 6, '$' . number_format($pedido['total'], 0), 0, 1, 'R');
 
-    <div class="separador" style="margin-top:20px;"></div>
-    <p class="centrado">¡Gracias por su preferencia!</p>
+$pdf->Ln(4);
+$pdf->SetFont('Courier', 'I', 7);
+$pdf->Cell(50, 4, t('¡Gracias por su compra!'), 0, 1, 'C');
+$pdf->Cell(50, 4, '.', 0, 1, 'C'); 
 
-    <script>
-        // Al cargar la página, se abre el diálogo de impresión automáticamente
-        window.onload = function() {
-            window.print();
-        };
-    </script>
-
-</body>
-</html>
+// Limpiamos cualquier salida previa y generamos el PDF
+ob_end_clean(); 
+$pdf->Output('I', 'Ticket_'.$id.'.pdf');

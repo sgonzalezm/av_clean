@@ -3,7 +3,10 @@ require_once '../includes/session.php';
 require_once '../includes/conexion.php';
 verificarSesion();
 
-// --- 1. PROCESAMIENTO DEL PEDIDO (Lógica de Registro) ---
+$pedido_finalizado = false;
+$nuevo_id = 0;
+
+// --- 1. PROCESAMIENTO DEL PEDIDO ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['cliente_id'])) {
     try {
         $pdo->beginTransaction();
@@ -11,9 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['cliente_id'])) {
         $usuario_id = $_SESSION['admin_id']; 
         $cliente_id = $_POST['cliente_id'];
         $total_antes_descuento = 0;
+        $requiere_produccion_global = false;
 
-        // Obtener datos del cliente para el pedido
-        $stmt_c = $pdo->prepare("SELECT c.nombre_completo, c.email, c.telefono, c.direccion, tc.descuento_porcentaje 
+        $stmt_c = $pdo->prepare("SELECT c.nombre_completo, tc.descuento_porcentaje 
                                  FROM clientes c 
                                  INNER JOIN tipos_cliente tc ON c.tipo_cliente_id = tc.id 
                                  WHERE c.id = ?");
@@ -21,96 +24,128 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['cliente_id'])) {
         $info_cliente = $stmt_c->fetch();
 
         if (!$info_cliente) throw new Exception("Cliente no encontrado.");
-
         $desc_cliente = $info_cliente['descuento_porcentaje'] / 100;
 
-        // Crear pedido base (Total temporal en 0)
-        $stmt = $pdo->prepare("INSERT INTO pedidos (usuario_id, cliente_id, nombre, email, telefono, domicilio, total, status, fecha_pedido) VALUES (?, ?, ?, ?, ?, ?, 0, 'Confirmado', NOW())");
-        $stmt->execute([$usuario_id, $cliente_id, $info_cliente['nombre_completo'], $info_cliente['email'], $info_cliente['telefono'], $info_cliente['direccion']]);
+        $stmt = $pdo->prepare("INSERT INTO pedidos (usuario_id, cliente_id, nombre, total, status, fecha_pedido) VALUES (?, ?, ?, 0, 'Confirmado', NOW())");
+        $stmt->execute([$usuario_id, $cliente_id, $info_cliente['nombre_completo']]);
         $pedido_id = $pdo->lastInsertId();
 
-        // Registrar productos seleccionados
-        foreach ($_POST['productos'] as $item) {
-            $cantidad = intval($item['cantidad']);
-            if ($cantidad > 0) {
-                $p_id = $item['id'];
-                $p_info = $pdo->prepare("SELECT nombre, precio FROM productos WHERE id = ?");
-                $p_info->execute([$p_id]);
-                $prod = $p_info->fetch();
+        if(isset($_POST['productos'])) {
+            foreach ($_POST['productos'] as $item) {
+                $cant_vta = intval($item['cantidad']);
+                if ($cant_vta > 0) {
+                    $p_id = $item['id'];
+                    
+                    $st = $pdo->prepare("SELECT p.nombre, p.precio, f.stock_litros_disponibles as stock, f.id as id_formula 
+                                         FROM productos p 
+                                         LEFT JOIN formulas_maestras f ON p.id_formula_maestra = f.id 
+                                         WHERE p.id = ?");
+                    $st->execute([$p_id]);
+                    $prod = $st->fetch();
 
-                if ($prod) {
-                    $subtotal = $prod['precio'] * $cantidad;
-                    $total_antes_descuento += $subtotal;
+                    if ($prod) {
+                        if ($prod['stock'] < $cant_vta) {
+                            $requiere_produccion_global = true;
+                        }
 
-                    $ins = $pdo->prepare("INSERT INTO detalle_pedido (pedido_id, producto_id, cantidad, producto_nombre, precio_unitario) VALUES (?, ?, ?, ?, ?)");
-                    $ins->execute([$pedido_id, $p_id, $cantidad, $prod['nombre'], $prod['precio']]);
+                        $subtotal = $prod['precio'] * $cant_vta;
+                        $total_antes_descuento += $subtotal;
+
+                        $ins = $pdo->prepare("INSERT INTO detalle_pedido (pedido_id, producto_id, cantidad, producto_nombre, precio_unitario) VALUES (?, ?, ?, ?, ?)");
+                        $ins->execute([$pedido_id, $p_id, $cant_vta, $prod['nombre'], $prod['precio']]);
+                        
+                        if ($prod['stock'] >= $cant_vta && $prod['id_formula']) {
+                            $upd = $pdo->prepare("UPDATE formulas_maestras SET stock_litros_disponibles = stock_litros_disponibles - ? WHERE id = ?");
+                            $upd->execute([$cant_vta, $prod['id_formula']]);
+                        }
+                    }
                 }
             }
         }
 
         if ($total_antes_descuento > 0) {
             $total_final = $total_antes_descuento * (1 - $desc_cliente);
-            $pdo->prepare("UPDATE pedidos SET total = ? WHERE id = ?")->execute([$total_final, $pedido_id]);
+            $status_final = $requiere_produccion_global ? 'Pendiente Producción' : 'Confirmado';
+            $pdo->prepare("UPDATE pedidos SET total = ?, status = ? WHERE id = ?")->execute([$total_final, $status_final, $pedido_id]);
             $pdo->commit();
             
-            // --- INTEGRACIÓN DE IMPRESIÓN ---
-            // Redirigimos al archivo del ticket pasando el ID recién creado
-            header("Location: imprimir_ticket.php?id=" . $pedido_id);
-            exit;
-        } else {
-            throw new Exception("Debe seleccionar al menos un producto con cantidad mayor a cero.");
+            // VARIABLES PARA DISPARAR LA ALERTA
+            $pedido_finalizado = true;
+            $nuevo_id = $pedido_id;
         }
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        $error = "Error al registrar la venta: " . $e->getMessage();
+        $error = "Error: " . $e->getMessage();
     }
 }
 
-// --- 2. CONSULTAS PARA LA VISTA ---
-$productos = $pdo->query("SELECT id, nombre, precio, categoria FROM productos ORDER BY categoria, nombre ASC")->fetchAll();
-
-$sql_clientes = "SELECT c.id, c.nombre_completo, tc.nombre as tipo, tc.descuento_porcentaje 
-                 FROM clientes c 
-                 INNER JOIN tipos_cliente tc ON c.tipo_cliente_id = tc.id 
-                 WHERE c.estatus = 'Activo' ORDER BY c.nombre_completo ASC";
-$clientes = $pdo->query($sql_clientes)->fetchAll();
+// CONSULTA DE PRODUCTOS Y CLIENTES
+$sql_prod = "SELECT p.id, p.nombre, p.precio, p.categoria, f.stock_litros_disponibles as stock 
+             FROM productos p 
+             LEFT JOIN formulas_maestras f ON p.id_formula_maestra = f.id 
+             ORDER BY p.categoria, p.nombre ASC";
+$productos = $pdo->query($sql_prod)->fetchAll();
+$clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje FROM clientes c INNER JOIN tipos_cliente tc ON c.tipo_cliente_id = tc.id WHERE c.estatus = 'Activo' ORDER BY c.nombre_completo ASC")->fetchAll();
 ?>
 
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>POS | AHD Clean</title>
+    <title>POS Móvil | AHD Clean</title>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="../css/admin.css">
     <style>
-        .pos-container { display: grid; grid-template-columns: 1fr 380px; gap: 20px; height: 75vh; }
-        .catalog-panel { background: white; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e2e8f0; }
-        .product-grid { overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
-        .ticket-panel { background: #1e293b; color: white; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; }
-        .product-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #f1f5f9; }
-        .qty-input-pos { width: 70px; text-align: center; border: 1px solid #cbd5e1; border-radius: 5px; padding: 5px; font-weight: bold; }
-        .summary-box { background: #0f172a; border-radius: 10px; padding: 15px; margin-top: auto; }
-        .total-line { display: flex; justify-content: space-between; font-size: 1.6rem; font-weight: 800; color: #4fd1c5; border-top: 1px solid #334155; padding-top: 10px; margin-top: 10px; }
-        .btn-pay { width: 100%; background: #10b981; color: white; border: none; padding: 15px; border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 15px; transition: 0.3s; }
-        .btn-pay:hover { background: #059669; }
+        :root { --accent: #10b981; --dark: #1e293b; }
+        body { margin: 0; padding: 0; background: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .header-mobile { display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--dark); color: white; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 2000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .pos-container { display: grid; grid-template-columns: 1fr 380px; gap: 20px; margin-top: 10px; }
+        @media (max-width: 992px) {
+            .header-mobile { display: flex; }
+            .sidebar { position: fixed; left: -260px; top: 0; height: 100%; width: 260px; z-index: 3000; transition: 0.3s; background: var(--dark); }
+            .sidebar.active { left: 0; }
+            .main { margin-left: 0 !important; padding: 75px 15px 120px 15px !important; width: 100% !important; }
+            .pos-container { grid-template-columns: 1fr; }
+            .ticket-panel { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1500; border-radius: 0; padding: 15px; background: #1e293b; box-shadow: 0 -5px 15px rgba(0,0,0,0.3); }
+            .hide-mobile { display: none !important; }
+            .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2500; }
+            .overlay.active { display: block; }
+        }
+        .product-row { display: flex; align-items: center; background: white; padding: 15px; border-radius: 10px; margin-bottom: 8px; border: 1px solid #e2e8f0; transition: 0.2s; }
+        .product-info { flex: 1; }
+        .qty-input-pos { width: 75px; height: 45px; text-align: center; font-size: 1.1rem; border: 2px solid #cbd5e1; border-radius: 8px; font-weight: bold; }
+        .stock-tag { font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-top: 5px; display: inline-block; }
+        .st-ok { background: #dcfce7; color: #166534; }
+        .st-low { background: #fee2e2; color: #b91c1c; }
+        .btn-hamburger { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
         .search-pos { position: relative; margin-bottom: 15px; }
-        .search-pos i { position: absolute; left: 15px; top: 12px; color: #94a3b8; }
-        .search-pos input { width: 100%; padding: 10px 10px 10px 40px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 1rem; }
+        .search-pos i { position: absolute; left: 15px; top: 15px; color: #94a3b8; }
+        .search-pos input { width: 100%; padding: 12px 12px 12px 45px; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 1rem; }
     </style>
 </head>
 <body>
-    <?php include 'sidebar.php'; ?>
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <div class="header-mobile">
+        <button class="btn-hamburger" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
+        <span style="font-weight: 800; letter-spacing: 1px;">AHD CLEAN</span>
+        <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i>
+    </div>
+
+    <div id="mySidebar">
+        <?php include 'sidebar.php'; ?>
+    </div>
 
     <div class="main">
-        <div class="header" style="margin-bottom:20px;">
+        <div class="header hide-mobile" style="margin-bottom:20px;">
             <h1><i class="fas fa-cash-register"></i> Punto de Venta Interno</h1>
-            <div class="user-badge"><i class="fas fa-user"></i> <?php echo $_SESSION['admin_nombre']; ?></div>
         </div>
 
         <?php if(isset($error)): ?>
-            <div style="background:#fee2e2; color:#b91c1c; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #fecaca;">
-                <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
+            <div style="background: #fee2e2; color: #b91c1c; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
             </div>
         <?php endif; ?>
 
@@ -119,20 +154,25 @@ $clientes = $pdo->query($sql_clientes)->fetchAll();
                 <div class="catalog-panel">
                     <div class="search-pos">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="buscador" placeholder="Buscar producto por nombre...">
+                        <input type="text" id="buscador" placeholder="Buscar producto...">
                     </div>
                     
-                    <div class="product-grid" id="listaProductos">
-                        <?php foreach ($productos as $i => $p): ?>
+                    <div class="product-grid">
+                        <?php foreach ($productos as $i => $p): 
+                            $st = (float)$p['stock'];
+                        ?>
                         <div class="product-row" data-nombre="<?php echo strtolower($p['nombre']); ?>">
-                            <div>
+                            <div class="product-info">
                                 <strong style="display:block;"><?php echo htmlspecialchars($p['nombre']); ?></strong>
-                                <small style="color:#64748b; text-transform:uppercase; font-size:0.7rem;"><?php echo $p['categoria']; ?></small>
+                                <span class="stock-tag <?php echo ($st > 0) ? 'st-ok' : 'st-low'; ?>">
+                                    Stock: <?php echo $st; ?>L
+                                </span>
                             </div>
-                            <div style="display:flex; align-items:center; gap:15px;">
-                                <span style="font-weight:bold; color:#059669;">$<?php echo number_format($p['precio'], 2); ?></span>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span style="font-weight:bold; color:var(--accent);">$<?php echo number_format($p['precio'], 2); ?></span>
                                 <input type="hidden" name="productos[<?php echo $i; ?>][id]" value="<?php echo $p['id']; ?>">
                                 <input type="hidden" class="precio-unitario" value="<?php echo $p['precio']; ?>">
+                                <input type="hidden" class="stock-actual" value="<?php echo $st; ?>">
                                 <input type="number" name="productos[<?php echo $i; ?>][cantidad]" 
                                        class="qty-input-pos input-cantidad" min="0" value="0">
                             </div>
@@ -142,9 +182,13 @@ $clientes = $pdo->query($sql_clientes)->fetchAll();
                 </div>
 
                 <div class="ticket-panel">
-                    <div style="margin-bottom:20px;">
-                        <label style="font-size:0.8rem; color:#94a3b8; font-weight:bold;">CLIENTE / DESCUENTO</label>
-                        <select name="cliente_id" id="cliente_id" class="form-control" required style="background:#334155; color:white; border:none; margin-top:8px; height:45px;">
+                    <div id="alert-produccion" style="display:none; background:#fffbeb; color:#92400e; padding:10px; border-radius:8px; margin-bottom:10px; font-size:0.8rem; border:1px solid #fef3c7;">
+                        <i class="fas fa-industry"></i> Requiere Orden de Producción
+                    </div>
+
+                    <div style="margin-bottom:15px;">
+                        <label style="font-size:0.75rem; color:#94a3b8; font-weight:bold;">CLIENTE</label>
+                        <select name="cliente_id" id="cliente_id" class="form-control" style="background:#334155; color:white; border:none; height:45px; width:100%; border-radius: 8px; padding: 0 10px;">
                             <?php foreach ($clientes as $c): ?>
                                 <option value="<?php echo $c['id']; ?>" data-descuento="<?php echo $c['descuento_porcentaje']; ?>">
                                     <?php echo htmlspecialchars($c['nombre_completo']); ?> (<?php echo (int)$c['descuento_porcentaje']; ?>%)
@@ -153,76 +197,89 @@ $clientes = $pdo->query($sql_clientes)->fetchAll();
                         </select>
                     </div>
 
-                    <div style="flex-grow:1; border-top:1px solid #334155; padding-top:15px;">
-                        <small style="color:#64748b;">La venta se registrará e inmediatamente se abrirá el ticket para imprimir.</small>
-                    </div>
-
-                    <div class="summary-box">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.9rem; color:#94a3b8;">
-                            <span>Subtotal</span>
-                            <span id="subtotalTxt">$0.00</span>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.9rem; color:#94a3b8;">
-                            <span>Descuento aplicado</span>
-                            <span id="descTxt">0%</span>
-                        </div>
-                        <div class="total-line">
+                    <div class="summary-box" style="background: #0f172a; padding: 20px; border-radius: 15px;">
+                        <div style="display:flex; justify-content:space-between; color:#4fd1c5; font-size:1.6rem; font-weight:900;">
                             <span>TOTAL</span>
                             <span id="granTotal">$0.00</span>
                         </div>
+                        <button type="submit" class="btn-pay" style="width:100%; margin-top:15px; padding:18px; background:var(--accent); color:white; border:none; border-radius:12px; font-weight:bold; font-size:1.1rem; cursor:pointer;">
+                            REGISTRAR VENTA
+                        </button>
                     </div>
-
-                    <button type="submit" class="btn-pay">
-                        <i class="fas fa-print"></i> REGISTRAR E IMPRIMIR
-                    </button>
                 </div>
             </div>
         </form>
     </div>
 
     <script>
-        const buscador = document.getElementById('buscador');
-        const selectCliente = document.getElementById('cliente_id');
-        const displayTotal = document.getElementById('granTotal');
-        const displaySubtotal = document.getElementById('subtotalTxt');
-        const displayDesc = document.getElementById('descTxt');
-        const rows = document.querySelectorAll('.product-row');
-        const inputs = document.querySelectorAll('.input-cantidad');
-
-        function calcularVenta() {
-            let subtotal = 0;
-            const descPerc = parseFloat(selectCliente.options[selectCliente.selectedIndex].getAttribute('data-descuento')) || 0;
-            
-            rows.forEach(row => {
-                const precio = parseFloat(row.querySelector('.precio-unitario').value);
-                const cantidad = parseInt(row.querySelector('.input-cantidad').value) || 0;
-                
-                if(cantidad > 0) {
-                    subtotal += precio * cantidad;
-                    row.style.background = "#f0fdf4"; 
+        // --- NOTIFICACIÓN DE ÉXITO ---
+        <?php if($pedido_finalizado): ?>
+            Swal.fire({
+                title: '¡Venta Exitosa!',
+                text: 'El pedido #<?php echo $nuevo_id; ?> se ha generado correctamente.',
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#3b82f6',
+                confirmButtonText: '<i class="fas fa-print"></i> Imprimir Ticket',
+                cancelButtonText: '<i class="fas fa-plus"></i> Nueva Venta',
+                allowOutsideClick: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.open('imprimir_ticket.php?id=<?php echo $nuevo_id; ?>', '_blank');
+                    window.location.href = 'nueva_venta.php';
                 } else {
-                    row.style.background = "";
+                    window.location.href = 'nueva_venta.php';
+                }
+            });
+        <?php endif; ?>
+
+        function toggleMenu() {
+            const sidebar = document.querySelector('.sidebar') || document.getElementById('mySidebar').firstElementChild;
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        const inputs = document.querySelectorAll('.input-cantidad');
+        function calcularVenta() {
+            let total = 0;
+            let prod = false;
+            const selectCliente = document.getElementById('cliente_id');
+            const desc = parseFloat(selectCliente.options[selectCliente.selectedIndex].getAttribute('data-descuento')) || 0;
+            
+            document.querySelectorAll('.product-row').forEach(row => {
+                const precio = parseFloat(row.querySelector('.precio-unitario').value);
+                const stock = parseFloat(row.querySelector('.stock-actual').value);
+                const cant = parseInt(row.querySelector('.input-cantidad').value) || 0;
+                
+                if(cant > 0) {
+                    total += precio * cant;
+                    if(cant > stock) prod = true;
+                    row.style.borderColor = "var(--accent)";
+                    row.style.background = "#f0fdf4";
+                } else {
+                    row.style.borderColor = "#e2e8f0";
+                    row.style.background = "white";
                 }
             });
 
-            const totalFinal = subtotal * (1 - (descPerc / 100));
-
-            displaySubtotal.innerText = '$' + subtotal.toFixed(2);
-            displayDesc.innerText = descPerc + '%';
-            displayTotal.innerText = '$' + totalFinal.toLocaleString('es-MX', {minimumFractionDigits: 2});
+            document.getElementById('alert-produccion').style.display = prod ? 'block' : 'none';
+            const final = total * (1 - (desc / 100));
+            document.getElementById('granTotal').innerText = '$' + final.toLocaleString('es-MX', {minimumFractionDigits:2});
         }
 
-        buscador.addEventListener('input', function() {
-            const term = this.value.toLowerCase();
-            rows.forEach(row => {
-                const nombre = row.getAttribute('data-nombre');
-                row.style.display = nombre.includes(term) ? "flex" : "none";
+        document.getElementById('buscador').addEventListener('input', function() {
+            const t = this.value.toLowerCase();
+            document.querySelectorAll('.product-row').forEach(r => {
+                r.style.display = r.getAttribute('data-nombre').includes(t) ? "flex" : "none";
             });
         });
 
-        inputs.forEach(input => input.addEventListener('input', calcularVenta));
-        selectCliente.addEventListener('change', calcularVenta);
+        inputs.forEach(i => i.addEventListener('input', calcularVenta));
+        document.getElementById('cliente_id').addEventListener('change', calcularVenta);
         
+        // Inicializar cálculo por defecto
         calcularVenta();
     </script>
 </body>
