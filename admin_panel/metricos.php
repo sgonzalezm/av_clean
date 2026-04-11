@@ -1,46 +1,54 @@
 <?php
 session_start();
-require_once '../includes/conexion.php'; // Asumo que aquí ya tienes la conexión $pdo
+require_once '../includes/conexion.php'; 
 
 // 1. Identificar al usuario y su rol
-$usuario_id = $_SESSION['admin_id']; // ID del usuario logueado
-$rol_usuario = $_SESSION['admin_rol']; // Asumiendo que guardas el rol en la sesión
+$usuario_id = $_SESSION['admin_id'] ?? null;
+$rol_usuario = $_SESSION['admin_rol'] ?? 'Vendedor';
+
+if (!$usuario_id) { header("Location: login.php"); exit(); }
 
 // 2. Definir el filtro SQL según el rol
-// Si es Admin, el filtro está vacío (ve todo). Si no, filtramos por su ID.
+// Nota: Usamos "ped.usuario_id" o "usuario_id" asegurándonos de que no haya ambigüedad
 $sql_filtro = ($rol_usuario === 'Administrador') ? "" : " AND usuario_id = :uid";
+$sql_filtro_ped = ($rol_usuario === 'Administrador') ? "" : " AND ped.usuario_id = :uid";
 $params = ($rol_usuario === 'Administrador') ? [] : [':uid' => $usuario_id];
 
 try {
-    // --- 1. VENTA MENSUAL ---
+    // --- 1. VENTA MENSUAL (Eliminada columna 'status') ---
     $meta_mensual = 50000;
+    // Agregamos YEAR(CURRENT_DATE()) para que no se mezclen datos de años pasados
     $sql_venta = "SELECT SUM(total) as total_mes FROM pedidos 
                   WHERE MONTH(fecha_pedido) = MONTH(CURRENT_DATE()) 
-                  AND status != 'Cancelado' $sql_filtro";
+                  AND YEAR(fecha_pedido) = YEAR(CURRENT_DATE()) 
+                  $sql_filtro";
     
     $stmt = $pdo->prepare($sql_venta);
     $stmt->execute($params);
     $venta_mes = $stmt->fetch()['total_mes'] ?? 0;
-    $porcentaje_meta = min(($venta_mes / $meta_mensual) * 100, 100);
+    $porcentaje_meta = ($meta_mensual > 0) ? min(($venta_mes / $meta_mensual) * 100, 100) : 0;
 
     // --- 2. MÉTRICAS DE FACTURACIÓN ---
     $sql_facturado = "SELECT SUM(p.total) as total_facturado 
                       FROM facturacion f 
                       JOIN pedidos p ON f.pedido_id = p.id 
-                      WHERE MONTH(f.fecha_facturacion) = MONTH(CURRENT_DATE()) $sql_filtro";
+                      WHERE MONTH(f.fecha_facturacion) = MONTH(CURRENT_DATE()) 
+                      AND YEAR(f.fecha_facturacion) = YEAR(CURRENT_DATE()) 
+                      $sql_filtro";
     
     $stmt_facturado = $pdo->prepare($sql_facturado);
     $stmt_facturado->execute($params);
     $venta_facturada_mes = $stmt_facturado->fetch()['total_facturado'] ?? 0;
     $porcentaje_facturacion = ($venta_mes > 0) ? ($venta_facturada_mes / $venta_mes) * 100 : 0;
 
-    // --- 3. TOP PRODUCTOS (Filtro por vendedor) ---
-    // Nota: Aquí el JOIN requiere filtrar por la tabla de pedidos
+    // --- 3. TOP PRODUCTOS (Filtro por vendedor y mes actual) ---
     $sql_top = "SELECT p.nombre, SUM(dp.cantidad) as total_vendido 
                 FROM detalle_pedido dp 
                 JOIN productos p ON dp.producto_id = p.id 
                 JOIN pedidos ped ON dp.pedido_id = ped.id
-                WHERE 1=1 $sql_filtro
+                WHERE MONTH(ped.fecha_pedido) = MONTH(CURRENT_DATE())
+                AND YEAR(ped.fecha_pedido) = YEAR(CURRENT_DATE())
+                $sql_filtro_ped
                 GROUP BY p.id ORDER BY total_vendido DESC LIMIT 5";
     
     $stmt_top = $pdo->prepare($sql_top);
@@ -48,34 +56,49 @@ try {
     $top_productos = $stmt_top->fetchAll(PDO::FETCH_ASSOC);
 
     // --- 4. COMISIONES ---
+    // Puedes ajustar esto para que solo sea sobre pedidos 'Pagados' si lo prefieres
     $comision_acumulada = $venta_mes * 0.03;
     $nivel = "Bronce"; $color_nivel = "#cd7f32";
     if($venta_mes > 20000) { $nivel = "Plata"; $color_nivel = "#C0C0C0"; }
     if($venta_mes > 40000) { $nivel = "Oro"; $color_nivel = "#FFD700"; }
 
-} catch(PDOException $e) { die("Error: " . $e->getMessage()); }
+} catch(PDOException $e) { 
+    die("Error técnico en las métricas: " . $e->getMessage()); 
+}
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Métricas de Facturación</title>
+    <title>Métricas de Facturación | AHD Clean</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .metricas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .graficos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 20px; }
+        .card, .card-grafico { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .monto { font-size: 2rem; font-weight: 800; color: #2d3748; margin: 10px 0; }
+        .progress-bar { background: #edf2f7; height: 12px; border-radius: 6px; margin: 12px 0; overflow: hidden; }
+        .progress-fill { background: #48bb78; height: 100%; transition: width 0.8s ease-out; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .meta-dias { background: #ebf8ff; color: #3182ce; padding: 10px 20px; border-radius: 10px; font-weight: bold; }
+    </style>
 </head>
 <body>
-<!-- Botón toggle para móvil -->
     <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     <?php include 'sidebar.php'; ?>
     
     <div class="main">
         <div class="header">
-            <h1><i class="fas fa-chart-line"></i> Dashboard de Métricas</h1>
+            <div>
+                <h1><i class="fas fa-chart-line"></i> Dashboard de Métricas</h1>
+                <p style="color: #718096;">Resumen de desempeño para <strong><?php echo ($rol_usuario === 'Administrador') ? 'Toda la Empresa' : 'Tu Usuario'; ?></strong></p>
+            </div>
             <div class="meta-dias">
-                <i class="far fa-calendar-alt"></i> <?php echo date('t') - date('d'); ?> días restantes
+                <i class="far fa-calendar-alt"></i> <?php echo date('t') - date('d'); ?> días restantes del mes
             </div>
         </div>
 
@@ -86,7 +109,7 @@ try {
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: <?php echo $porcentaje_meta; ?>%"></div>
                 </div>
-                <small><?php echo round($porcentaje_meta, 1); ?>% de la meta</small>
+                <small><?php echo round($porcentaje_meta, 1); ?>% de la meta ($<?php echo number_format($meta_mensual); ?>)</small>
             </div>
 
             <div class="card card-facturacion" style="border-left: 5px solid #4fd1c5;">
@@ -101,13 +124,13 @@ try {
             <div class="card card-nivel" style="border-top: 5px solid <?php echo $color_nivel; ?>">
                 <h3>Mi Nivel: <span style="color: <?php echo $color_nivel; ?>"><?php echo $nivel; ?></span></h3>
                 <p class="monto">$<?php echo number_format($comision_acumulada, 2); ?></p>
-                <small>Comisión acumulada total</small>
+                <small>Comisión estimada (3%)</small>
             </div>
         </div>
 
         <div class="graficos-grid">
             <div class="card-grafico">
-                <h3><i class="fas fa-box-open"></i> Mezcla de Ventas</h3>
+                <h3><i class="fas fa-box-open"></i> Mezcla de Ventas (Top 5)</h3>
                 <div style="height: 250px;">
                     <canvas id="chartProductos"></canvas>
                 </div>
@@ -121,16 +144,6 @@ try {
             </div>
         </div>
     </div>
-
-    <style>
-        /* Reutilizando tus estilos y añadiendo ajustes para los gráficos */
-        .metricas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graficos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 20px; }
-        .card, .card-grafico { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .monto { font-size: 2rem; font-weight: 800; color: #2d3748; margin: 10px 0; }
-        .progress-bar { background: #edf2f7; height: 12px; border-radius: 6px; margin: 12px 0; overflow: hidden; }
-        .progress-fill { background: #48bb78; height: 100%; transition: width 0.8s ease-out; }
-    </style>
 
     <script>
         // Gráfico 1: Mezcla de Productos
@@ -147,12 +160,12 @@ try {
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
         });
 
-        // Gráfico 2: Comparativa Facturación (NUEVO)
+        // Gráfico 2: Comparativa Facturación
         const ctxF = document.getElementById('chartFactura').getContext('2d');
         new Chart(ctxF, {
             type: 'bar',
             data: {
-                labels: ['Este Mes'],
+                labels: ['Desempeño del Mes'],
                 datasets: [
                     {
                         label: 'Venta Total',
@@ -172,6 +185,10 @@ try {
                 scales: { y: { beginAtZero: true } }
             }
         });
+
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('active');
+        }
     </script>
     <script src="../js/admin.js"></script>
 </body>
