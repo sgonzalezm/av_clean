@@ -30,28 +30,38 @@ switch ($periodo) {
 $rango_sql = "BETWEEN '$fecha_inicio 00:00:00' AND '$fecha_fin 23:59:59'";
 
 try {
-    // --- 2. MÉTRICAS FINANCIERAS ---
-    $ingresosReales = $pdo->query("SELECT SUM(total) FROM pedidos WHERE fecha_pedido $rango_sql AND status_pago = 'Pagado'")->fetchColumn() ?? 0;
-    $cuentasPorCobrar = $pdo->query("SELECT SUM(total) FROM pedidos WHERE status_pago IN ('Pendiente', 'Crédito')")->fetchColumn() ?? 0;
+    // --- 2. MÉTRICAS FINANCIERAS (INTEGRADAS) ---
+    // CAJA REAL: Suma de abonos (monto_pagado) registrados en el periodo
+    $ingresosReales = $pdo->query("SELECT SUM(monto_pagado) FROM pedidos WHERE fecha_pedido $rango_sql")->fetchColumn() ?? 0;
+    
+    // CUENTAS POR COBRAR: Saldo real pendiente (Total - Pagado)
+    $cuentasPorCobrar = $pdo->query("SELECT SUM(total - monto_pagado) FROM pedidos WHERE status_pago != 'Pagado'")->fetchColumn() ?? 0;
+    
+    // EGRESOS 1: Inversión en Producción (Original)
     $inversionProduccion = $pdo->query("SELECT SUM(costo_total_insumos) FROM ordenes_produccion WHERE fecha_registro $rango_sql")->fetchColumn() ?? 0;
-    $balanceNeto = $ingresosReales - $inversionProduccion;
-    $roiReal = ($inversionProduccion > 0) ? ($balanceNeto / $inversionProduccion) * 100 : 0;
+    
+    // EGRESOS 2: Gastos Operativos (Tabla gastos)
+    $gastosOperativos = $pdo->query("SELECT SUM(monto) FROM gastos WHERE fecha_gasto $rango_sql")->fetchColumn() ?? 0;
 
-    // --- 3. VALORIZACIÓN DE TANQUES ---
+    $egresosTotales = $inversionProduccion + $gastosOperativos;
+    $balanceNeto = $ingresosReales - $egresosTotales;
+    $roiReal = ($egresosTotales > 0) ? ($balanceNeto / $egresosTotales) * 100 : 0;
+
+    // --- 3. VALORIZACIÓN DE TANQUES (Sin cambios) ---
     $sql_valor_tanques = "SELECT SUM(f.stock_litros_disponibles * COALESCE((SELECT (p.precio / p.volumen_valor) FROM productos p WHERE p.id_formula_maestra = f.id AND p.volumen_valor >= 20 ORDER BY p.volumen_valor DESC LIMIT 1), (SELECT (p2.precio / p2.volumen_valor) * 0.80 FROM productos p2 WHERE p2.id_formula_maestra = f.id ORDER BY p2.volumen_valor ASC LIMIT 1))) as valor_total FROM formulas_maestras f";
     $valorInventarioTanques = $pdo->query($sql_valor_tanques)->fetchColumn() ?? 0;
 
-    // --- 4. MONITOR DE LOGÍSTICA ---
+    // --- 4. MONITOR DE LOGÍSTICA (Actualizado para mostrar saldos) ---
     $stats_surtido = $pdo->query("SELECT COUNT(*) as total_pendientes FROM pedidos WHERE status_logistica = 'Por Surtir'")->fetch();
-    $pendientes_surtir_lista = $pdo->query("SELECT id, cliente_id, total, status_pago FROM pedidos WHERE status_logistica = 'Por Surtir' ORDER BY fecha_pedido ASC LIMIT 5")->fetchAll();
+    $pendientes_surtir_lista = $pdo->query("SELECT id, cliente_id, total, status_pago, monto_pagado FROM pedidos WHERE status_logistica = 'Por Surtir' ORDER BY fecha_pedido ASC LIMIT 5")->fetchAll();
 
-    // --- 5. PROYECCIONES ---
+    // --- 5. PROYECCIONES (Sin cambios) ---
     $sql_proyeccion = "SELECT SUM(odp.cantidad_litros * COALESCE((SELECT precio FROM productos WHERE id_formula_maestra = p.id_formula_maestra AND volumen_valor = 1 LIMIT 1), (p.precio / p.volumen_valor))) as retail_real, SUM(odp.cantidad_litros * COALESCE((SELECT (precio / volumen_valor) FROM productos WHERE id_formula_maestra = p.id_formula_maestra AND volumen_valor >= 20 ORDER BY volumen_valor DESC LIMIT 1), (p.precio / p.volumen_valor) * 0.80 )) as wholesale_real FROM orden_detalle_productos odp JOIN productos p ON odp.id_producto = p.id JOIN ordenes_produccion op ON odp.id_orden = op.id WHERE op.fecha_registro $rango_sql";
     $proy = $pdo->query($sql_proyeccion)->fetch();
     $proyeccionRetail = $proy['retail_real'] ?? 0;
     $proyeccionWholesale = $proy['wholesale_real'] ?? 0;
 
-    // --- 6. VENDEDORES ---
+    // --- 6. VENDEDORES (Sin cambios) ---
     $leaderboard = $pdo->query("SELECT u.nombre, SUM(p.total) as total_vendido FROM pedidos p JOIN usuarios_admin u ON p.usuario_id = u.id WHERE p.fecha_pedido $rango_sql GROUP BY u.id ORDER BY total_vendido DESC LIMIT 5")->fetchAll();
 
 } catch (PDOException $e) { die("Error técnico: " . $e->getMessage()); }
@@ -60,7 +70,7 @@ try {
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>AHD Dashboard | Mobile Ready</title>
+    <title>AHD Dashboard | Maestro Integrado</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -96,21 +106,16 @@ try {
         .badge-pay { background: #c6f6d5; color: #22543d; }
         .badge-pending { background: #fed7d7; color: #822727; }
 
-        /* --- MEDIA QUERIES PARA SMARTPHONE --- */
         @media (max-width: 768px) {
             .header-mobile { display: flex; }
             .main { margin-left: 0 !important; padding-top: 80px !important; }
             .sidebar { position: fixed; left: -260px; z-index: 2000; transition: 0.3s; }
             .sidebar.active { left: 0; }
-            
             .filter-bar { flex-direction: column; align-items: stretch; }
             #custom-dates { flex-direction: column; }
-            
-            .metricas-grid { grid-template-columns: 1fr 1fr; } /* 2 por fila en móvil */
+            .metricas-grid { grid-template-columns: 1fr 1fr; }
             .kpi-icon { width: 35px; height: 35px; font-size: 1rem; }
-            
             .bottom-grid, .retorno-container { grid-template-columns: 1fr; }
-            
             h1 { font-size: 1.5rem; }
             .hide-mobile { display: none; }
         }
@@ -162,7 +167,7 @@ try {
             </div>
             <div class="card kpi">
                 <div class="kpi-icon bg-inv"><i class="fas fa-flask"></i></div>
-                <div><small style="font-weight:bold; color:#64748b; font-size:0.6rem;">INVERSIÓN</small><div style="font-size:1rem; font-weight:800;">$<?php echo number_format($inversionProduccion, 2); ?></div></div>
+                <div><small style="font-weight:bold; color:#64748b; font-size:0.6rem;">EGRESOS</small><div style="font-size:1rem; font-weight:800;">$<?php echo number_format($egresosTotales, 2); ?></div></div>
             </div>
             <div class="card kpi" style="border: 1px solid #bee3f8;">
                 <div class="kpi-icon bg-balance"><i class="fas fa-balance-scale"></i></div>
@@ -210,11 +215,15 @@ try {
                     <?php if(empty($pendientes_surtir_lista)): ?>
                         <tr><td style="color:#94a3b8; font-size:0.8rem; padding:15px; text-align:center;">Todo surtido.</td></tr>
                     <?php else: ?>
-                        <?php foreach($pendientes_surtir_lista as $p): ?>
+                        <?php foreach($pendientes_surtir_lista as $p): 
+                            $saldo = $p['total'] - $p['monto_pagado'];
+                        ?>
                             <tr style="border-bottom:1px solid #fefcbf;">
                                 <td style="padding:8px 0;">
                                     <small style="color:#64748b; font-weight:bold;">#<?php echo $p['id']; ?></small> <span style="font-size:0.8rem;">ID: <?php echo $p['cliente_id']; ?></span><br>
-                                    <span class="status-badge <?php echo ($p['status_pago'] == 'Pagado') ? 'badge-pay' : 'badge-pending'; ?>"><?php echo $p['status_pago']; ?></span>
+                                    <span class="status-badge <?php echo ($saldo <= 0) ? 'badge-pay' : 'badge-pending'; ?>">
+                                        <?php echo ($saldo <= 0) ? 'PAGADO' : 'DEBE $'.number_format($saldo, 2); ?>
+                                    </span>
                                 </td>
                                 <td style="text-align:right; font-weight:bold; color:#1e293b; font-size:0.9rem;">$<?php echo number_format($p['total'], 2); ?></td>
                             </tr>

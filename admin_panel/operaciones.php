@@ -117,9 +117,6 @@ $bajo_stock = $pdo->query("SELECT COUNT(*) FROM insumos WHERE stock_actual < 5")
                 <p style="color: #718096;">Centro de control para fabricación, insumos y compras de AHD Clean.</p>
             </div>
             <div class="header-actions">
-                <a href="nueva_compra.php" class="btn-principal">
-                    <i class="fas fa-cart-plus"></i> Registrar Compra
-                </a>
             </div>
         </div>
 
@@ -193,12 +190,31 @@ $bajo_stock = $pdo->query("SELECT COUNT(*) FROM insumos WHERE stock_actual < 5")
 
             <a href="gasto_nuevo.php" class="card-link">
                 <div class="card clickable">
-                    <i class="fas fa-toolbox fa-2x" style="color: #686563;"></i>
+                    <i class="fas fa-toolbox fa-2x" style="color: #17558f;"></i>
                     <h3>Equipo y consumibles</h3>
                     <p>Herramienta, equipamiento, insumos y consumibles requeridos por la operacion.</p>
                     <span class="btn-editar-mini">Administrar <i class="fas fa-arrow-right"></i></span>
                 </div>
             </a>
+
+            <a href="cuentas_cobrar.php" class="card-link">
+                <div class="card clickable">
+                    <i class="fas fa-wallet fa-2x" style="color: #d76b23;"></i>
+                    <h3>Cuentas por Cobrar</h3>
+                    <p>Seguimiento de saldos y vencimientos de clientes.</p>
+                    <span class="btn-editar-mini">Revisar <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+
+            <a href="pasivos.php" class="card-link">
+                <div class="card clickable">
+                    <i class="fas fa-file-invoice fa-2x" style="color: #72260c;"></i>
+                    <h3>Cuentas por Pagar</h3>
+                    <p>Seguimiento de saldos y vencimientos de proveedores.</p>
+                    <span class="btn-editar-mini">Revisar <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+
 
         </div> </div> <script src="../js/admin.js"></script>
     <script>

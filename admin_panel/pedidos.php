@@ -24,10 +24,10 @@ if(isset($_POST['actualizar_pedido'])) {
     exit;
 }
 
-// 2. Filtro de Logística por URL (Por Surtir, Surtido, Entregado)
+// 2. Filtro de Logística por URL
 $filtro = $_GET['estado'] ?? 'Por Surtir';
 
-// 3. Consulta de pedidos con JOIN a clientes para obtener el nombre real
+// 3. Consulta de pedidos
 $sql = "SELECT p.*, c.nombre_completo as cliente_nombre, c.telefono 
         FROM pedidos p 
         LEFT JOIN clientes c ON p.cliente_id = c.id 
@@ -51,8 +51,6 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; overflow-x: auto; }
         .tab { padding: 10px 20px; text-decoration: none; color: #64748b; border-radius: 8px; font-weight: 600; white-space: nowrap; transition: 0.3s; }
         .tab.active { background: #1e293b; color: white; }
-        
-        /* Colores dinámicos para los estados de logística */
         .tab-Por-Surtir.active { background: #f59e0b; color: white; }
         .tab-Surtido.active { background: #3b82f6; color: white; }
         .tab-Entregado.active { background: #10b981; color: white; }
@@ -65,10 +63,10 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .badge-pago-Pagado { background: #dcfce7; color: #15803d; }
         .badge-pago-Pendiente { background: #fef3c7; color: #92400e; }
         .badge-pago-Crédito { background: #e0f2fe; color: #0369a1; }
-        .badge-pago-Vencido { background: #fee2e2; color: #b91c1c; }
-
+        
         .select-status { padding: 6px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.8rem; background: #fff; cursor: pointer; }
-        .obs-text { font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 4px; font-style: italic; }
+        .btn-accion-pdf { color: #ef4444; font-size: 1.1rem; transition: 0.2s; }
+        .btn-accion-pdf:hover { transform: scale(1.2); }
     </style>
 </head>
 <body>
@@ -107,36 +105,24 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <th>Cliente / Contacto</th>
                     <th>Estado Pago</th>
                     <th>Total</th>
-                    <th>Acciones Operativas</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                <?php if(empty($pedidos)): ?>
-                    <tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;">No hay pedidos en etapa de <?php echo $filtro; ?>.</td></tr>
-                <?php endif; ?>
-
                 <?php foreach($pedidos as $p): ?>
                 <tr>
                     <td>
                         <span style="font-weight: 800; color: #1e293b;">#<?php echo $p['id']; ?></span><br>
-                        <small style="color: #64748b;"><?php echo date('d/m/Y H:i', strtotime($p['fecha_pedido'])); ?></small>
+                        <small style="color: #64748b;"><?php echo date('d/m/y H:i', strtotime($p['fecha_pedido'])); ?></small>
                     </td>
                     <td>
-                        <div style="font-weight: 600; color: #334155;"><?php echo htmlspecialchars($p['cliente_nombre']); ?></div>
+                        <div style="font-weight: 600;"><?php echo htmlspecialchars($p['cliente_nombre']); ?></div>
                         <div style="font-size: 0.75rem; color: #64748b;"><i class="fas fa-phone"></i> <?php echo $p['telefono']; ?></div>
-                        <?php if(!empty($p['observaciones'])): ?>
-                            <span class="obs-text"><i class="fas fa-comment-dots"></i> <?php echo htmlspecialchars($p['observaciones']); ?></span>
-                        <?php endif; ?>
                     </td>
                     <td>
-                        <span class="badge badge-pago-<?php echo $p['status_pago']; ?>">
-                            <?php echo $p['status_pago']; ?>
-                        </span>
-                        <?php if($p['status_pago'] == 'Crédito'): ?>
-                            <div style="font-size:0.65rem; color:#64748b; margin-top:3px;">Vence: <?php echo date('d/m/Y', strtotime($p['fecha_vencimiento_pago'])); ?></div>
-                        <?php endif; ?>
+                        <span class="badge badge-pago-<?php echo $p['status_pago']; ?>"><?php echo $p['status_pago']; ?></span>
                     </td>
-                    <td style="font-weight: 800; color: #1e293b;">$<?php echo number_format($p['total'], 2); ?></td>
+                    <td style="font-weight: 800;">$<?php echo number_format($p['total'], 2); ?></td>
                     <td>
                         <div style="display:flex; flex-direction:column; gap:8px;">
                             <form method="POST" style="display:flex; gap:5px;">
@@ -150,19 +136,9 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </select>
                             </form>
 
-                            <form method="POST" style="display:flex; gap:5px;">
-                                <input type="hidden" name="pedido_id" value="<?php echo $p['id']; ?>">
-                                <input type="hidden" name="actualizar_pedido" value="1">
-                                <select name="nuevo_estado_pago" class="select-status" onchange="this.form.submit()" style="border-color: #cbd5e1;">
-                                    <option value="">Pago...</option>
-                                    <option value="Pagado" <?php echo ($p['status_pago'] == 'Pagado') ? 'selected' : ''; ?>>Pagado</option>
-                                    <option value="Pendiente" <?php echo ($p['status_pago'] == 'Pendiente') ? 'selected' : ''; ?>>Pendiente</option>
-                                    <option value="Crédito" <?php echo ($p['status_pago'] == 'Crédito') ? 'selected' : ''; ?>>Crédito</option>
-                                </select>
-                            </form>
-                            
-                            <div style="display:flex; gap:10px; margin-top:5px;">
-                                <a href="imprimir_ticket.php?id=<?php echo $p['id']; ?>" target="_blank" title="Imprimir" style="color:#64748b;"><i class="fas fa-print"></i></a>
+                            <div style="display:flex; gap:15px; align-items:center; padding-top:5px; border-top:1px solid #f1f5f9;">
+                                <a href="imprimir_ticket.php?id=<?php echo $p['id']; ?>" target="_blank" title="Ticket POS" style="color:#64748b;"><i class="fas fa-receipt"></i></a>
+                                <a href="generar_pdf_pedido.php?id=<?php echo $p['id']; ?>" target="_blank" title="Imprimir PDF Carta" class="btn-accion-pdf"><i class="fas fa-file-pdf"></i></a>
                                 <a href="facturar.php?id=<?php echo $p['id']; ?>" title="Facturar" style="color:#64748b;"><i class="fas fa-file-invoice"></i></a>
                             </div>
                         </div>
@@ -172,7 +148,6 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </tbody>
         </table>
     </div>
-
     <script src="../js/admin.js"></script>
 </body>
 </html>

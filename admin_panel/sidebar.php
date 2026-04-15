@@ -45,7 +45,7 @@ function claseActiva($pagina) {
     <a href="cartera.php" class="<?php echo claseActiva('cartera.php'); ?>">
         <i class="fas fa-address-book"></i> Clientes
     </a>
-    <a href="compras.php" class="<?php echo claseActiva('compras.php'); ?>">
+    <a href="operaciones.php" class="<?php echo claseActiva('operaciones.php'); ?>">
         <i class="fas fa-gavel"></i> Operaciones
     </a>
     <?php endif; ?>
