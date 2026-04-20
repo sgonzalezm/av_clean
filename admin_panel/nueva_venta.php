@@ -61,8 +61,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['cliente_id'])) {
 
         if ($total_antes_descuento > 0) {
             $total_final = $total_antes_descuento * (1 - $desc_cliente);
+            
+            // LÓGICA DE REEMPLAZO:
+            // Si es Contado, definimos que el monto pagado inicial es igual al total
+            $monto_pagado_inicial = ($metodo_pago == 'Contado') ? $total_final : 0;
+            
             $obs = $requiere_produccion_global ? "⚠️ Requiere fabricar líquido." : "✅ Listo para surtir.";
-            $pdo->prepare("UPDATE pedidos SET total = ?, observaciones = ? WHERE id = ?")->execute([$total_final, $obs, $pedido_id]);
+            
+            // QUERY REEMPLAZADA: Se agrega monto_pagado = ?
+            $pdo->prepare("UPDATE pedidos SET total = ?, monto_pagado = ?, observaciones = ? WHERE id = ?")
+                ->execute([$total_final, $monto_pagado_inicial, $obs, $pedido_id]);
             
             $pdo->commit();
             $pedido_finalizado = true;
