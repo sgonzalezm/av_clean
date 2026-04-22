@@ -141,6 +141,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['nueva_categoria'])) {
                 <span class="action-link">Editar Datos <i class="fas fa-chevron-right"></i></span>
             </a>
 
+            <a href="capital_social.php" class="card-config">
+                <div>
+                    <div class="icon-box bg-purple"><i class="fas fa-coins"></i></div>
+                    <h3>Capital Social</h3>
+                    <p>Configuración del capital social de la empresa.</p>
+                </div>
+                <span class="action-link">Editar Datos <i class="fas fa-chevron-right"></i></span>
+            </a>
+
             <div class="card-config" onclick="openModal()" style="cursor: pointer;">
                 <div>
                     <div class="icon-box bg-green"><i class="fas fa-tags"></i></div>

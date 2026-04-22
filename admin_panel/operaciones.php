@@ -163,9 +163,9 @@ $bajo_stock = $pdo->query("SELECT COUNT(*) FROM insumos WHERE stock_actual < 5")
 
             <a href="historial_ordenes.php" class="card-link">
                 <div class="card clickable">
-                    <i class="fas fa-file-invoice-dollar fa-2x" style="color: #48bb78;"></i>
-                    <h3>Órdenes de Compra</h3>
-                    <p>Seguimiento de pedidos realizados, estados de pago y recepciones pendientes.</p>
+                    <i class="fas fa-industry fa-2x" style="color: #48bb78;"></i>
+                    <h3>Órdenes de Produccion</h3>
+                    <p>Seguimiento de produccion, ordenes de compra y recepciones pendientes.</p>
                     <span class="btn-editar-mini">Historial de Compras <i class="fas fa-arrow-right"></i></span>
                 </div>
             </a>

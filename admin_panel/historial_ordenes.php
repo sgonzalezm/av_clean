@@ -34,34 +34,7 @@ if (isset($_GET['exportar']) && $_GET['exportar'] == 'excel' && isset($_GET['id'
     exit();
 }
 
-$mensaje = "";
-
-// --- 2. LÓGICA PARA RECIBIR INSUMOS (CARGAR AL STOCK) ---
-if (isset($_POST['recibir_insumos_orden'])) {
-    $id_orden = $_POST['id_orden'];
-    try {
-        $pdo->beginTransaction();
-        $stmt_ins = $pdo->prepare("SELECT id_insumo, cantidad_usada FROM orden_detalle_insumos WHERE id_orden = ?");
-        $stmt_ins->execute([$id_orden]);
-        $insumos = $stmt_ins->fetchAll();
-
-        $stmt_update = $pdo->prepare("UPDATE insumos SET stock_actual = COALESCE(stock_actual, 0) + ? WHERE id = ?");
-        foreach ($insumos as $ins) {
-            $stmt_update->execute([$ins['cantidad_usada'], $ins['id_insumo']]);
-        }
-
-        $stmt_status = $pdo->prepare("UPDATE ordenes_produccion SET estado = 'SURTIDO' WHERE id = ?");
-        $stmt_status->execute([$id_orden]);
-
-        $pdo->commit();
-        $mensaje = "<div class='alert exito'>¡Orden #$id_orden recibida y stock actualizado!</div>";
-    } catch (Exception $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        $mensaje = "<div class='alert error'>Error: " . $e->getMessage() . "</div>";
-    }
-}
-
-// --- 3. CONSULTA DE ÓRDENES Y DETALLES ---
+// --- 2. CONSULTA DE ÓRDENES Y DETALLES ---
 $ordenes = $pdo->query("SELECT * FROM ordenes_produccion ORDER BY fecha_registro DESC")->fetchAll();
 $detalle_id = $_GET['ver'] ?? null;
 $insumos_detalle = [];
@@ -103,23 +76,15 @@ if ($detalle_id) {
             .mobile-history { display: flex !important; flex-direction: column; gap: 15px; }
         }
 
-        /* Alertas */
-        .alert { padding: 15px; border-radius: 12px; margin-bottom: 20px; font-weight: bold; border: 1px solid; }
-        .exito { background: #f0fff4; color: #22543d; border-color: #c6f6d5; }
-        .error { background: #fff5f5; color: #c53030; border-color: #feb2b2; }
-
-        /* Badges de Estado */
         .badge { padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
         .badge-pendiente { background: #fef3c7; color: #92400e; }
         .badge-surtido { background: #e0f2fe; color: #0369a1; }
         .badge-terminado { background: #dcfce7; color: #15803d; }
 
-        /* Vista de Historial (Mobile) */
         .mobile-history { display: none; }
         .order-card { background: white; border-radius: 15px; padding: 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .card-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 
-        /* Detalle */
         .card-detalle { background: #fff; border-radius: 15px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 25px; }
         .grid-detalle { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
         .table-mini { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -129,7 +94,6 @@ if ($detalle_id) {
         .search-box { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-sizing: border-box; font-size: 1rem; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2500; }
         .overlay.active { display: block; }
-
         .btn-action { padding: 10px 15px; border-radius: 10px; font-weight: bold; text-decoration: none; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 5px; }
     </style>
 </head>
@@ -149,8 +113,6 @@ if ($detalle_id) {
             <h1><i class="fas fa-history"></i> Historial de Producción</h1>
         </div>
 
-        <?php if($mensaje) echo $mensaje; ?>
-
         <?php if ($detalle_id): ?>
         <div class="card-detalle">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
@@ -160,22 +122,6 @@ if ($detalle_id) {
                     <a href="generar_pdf_produccion.php?id=<?php echo $detalle_id; ?>" target="_blank" style="background:#2b6cb0; color:white; padding:8px 12px; border-radius:8px; text-decoration:none; font-size:0.7rem; font-weight:bold;"><i class="fas fa-industry"></i></a>
                     <a href="historial_ordenes.php" style="background:#e2e8f0; color:#475569; padding:8px 12px; border-radius:8px; text-decoration:none;"><i class="fas fa-times"></i></a>
                 </div>
-            </div>
-
-            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #edf2f7;">
-                <small style="width:100%; color:#64748b; font-weight:bold; margin-bottom:5px;">LISTAS DE COMPRA POR PROVEEDOR:</small>
-                <?php 
-                $prov_listados = [];
-                foreach($insumos_detalle as $ins) {
-                    $p_nombre = $ins['proveedor'] ?? 'Sin Proveedor';
-                    if(!in_array($p_nombre, $prov_listados)) {
-                        $prov_listados[] = $p_nombre;
-                        echo '<a href="generar_pdf_lote.php?id='.$detalle_id.'&prov='.urlencode($p_nombre).'" target="_blank" class="badge" style="background:#fee2e2; color:#b91c1c; text-decoration:none; border:1px solid #fecaca;">
-                                <i class="fas fa-file-pdf"></i> '.$p_nombre.'
-                              </a>';
-                    }
-                }
-                ?>
             </div>
 
             <div class="grid-detalle">
@@ -190,24 +136,13 @@ if ($detalle_id) {
                         </tbody>
                     </table>
                 </div>
-
                 <div>
                     <h4 style="color:#4a5568; margin-top:0;"><i class="fas fa-flask"></i> Insumos</h4>
                     <table class="table-mini">
-                        <thead><tr><th>Insumo / Proveedor</th><th style="text-align:right;">Cant.</th></tr></thead>
+                        <thead><tr><th>Insumo</th><th style="text-align:right;">Cant.</th></tr></thead>
                         <tbody>
-                            <?php 
-                            $last_p = "";
-                            foreach($insumos_detalle as $id): 
-                                if($id['proveedor'] !== $last_p):
-                                    $last_p = $id['proveedor'];
-                            ?>
-                                <tr style="background:#f1f5f9;"><td colspan="2" style="font-weight:bold; font-size:0.7rem; color:#475569;"><?php echo htmlspecialchars($last_p ?? 'Sin Proveedor'); ?></td></tr>
-                            <?php endif; ?>
-                            <tr>
-                                <td style="padding-left:15px;"><?php echo htmlspecialchars($id['nombre']); ?></td>
-                                <td style="text-align:right;"><strong><?php echo number_format($id['cantidad_usada'], 2); ?></strong> <small><?php echo $id['unidad_medida']; ?></small></td>
-                            </tr>
+                            <?php foreach($insumos_detalle as $id): ?>
+                            <tr><td><?php echo htmlspecialchars($id['nombre']); ?></td><td style="text-align:right;"><strong><?php echo number_format($id['cantidad_usada'], 2); ?></strong> <small><?php echo $id['unidad_medida']; ?></small></td></tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
@@ -240,18 +175,14 @@ if ($detalle_id) {
                         <td class="status">
                             <?php 
                                 $est = $o['estado'] ?? 'PENDIENTE';
-                                $clase = 'badge-pendiente';
-                                if($est == 'SURTIDO') $clase = 'badge-surtido';
-                                if($est == 'TERMINADO') $clase = 'badge-terminado';
+                                $clase = ($est == 'SURTIDO') ? 'badge-surtido' : (($est == 'TERMINADO') ? 'badge-terminado' : 'badge-pendiente');
                             ?>
                             <span class="badge <?php echo $clase; ?>"><?php echo $est; ?></span>
                         </td>
                         <td><strong>$<?php echo number_format($o['costo_total_insumos'], 2); ?></strong></td>
                         <td style="text-align:right; padding-right:15px;">
                             <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                <?php if($est == 'PENDIENTE'): ?>
-                                    <form method="POST" style="margin:0;"><input type="hidden" name="id_orden" value="<?php echo $o['id']; ?>"><button type="submit" name="recibir_insumos_orden" class="btn-action" style="background:var(--success); color:white; border:none; cursor:pointer;" onclick="return confirm('¿Cargar al stock?')"><i class="fas fa-truck-loading"></i></button></form>
-                                <?php elseif($est == 'SURTIDO'): ?>
+                                <?php if($est != 'TERMINADO'): ?>
                                     <a href="finalizar_produccion.php?id=<?php echo $o['id']; ?>" class="btn-action" style="background:#3182ce; color:white;"><i class="fas fa-check-double"></i></a>
                                 <?php endif; ?>
                                 <a href="?ver=<?php echo $o['id']; ?>" class="btn-action" style="background:#f1f5f9; color:var(--dark);"><i class="fas fa-eye"></i></a>
@@ -266,9 +197,7 @@ if ($detalle_id) {
         <div class="mobile-history">
             <?php foreach ($ordenes as $o): 
                 $est = $o['estado'] ?? 'PENDIENTE';
-                $clase = 'badge-pendiente';
-                if($est == 'SURTIDO') $clase = 'badge-surtido';
-                if($est == 'TERMINADO') $clase = 'badge-terminado';
+                $clase = ($est == 'SURTIDO') ? 'badge-surtido' : (($est == 'TERMINADO') ? 'badge-terminado' : 'badge-pendiente');
             ?>
             <div class="order-card history-row">
                 <div class="card-row">
@@ -282,9 +211,7 @@ if ($detalle_id) {
                 <hr style="border:0; border-top:1px solid #f1f5f9; margin:15px 0;">
                 <div style="display:flex; gap:10px;">
                     <a href="?ver=<?php echo $o['id']; ?>" class="btn-action" style="flex:1; justify-content:center; background:#f1f5f9; color:var(--dark);"><i class="fas fa-eye"></i> DETALLE</a>
-                    <?php if($est == 'PENDIENTE'): ?>
-                        <form method="POST" style="flex:1;"><input type="hidden" name="id_orden" value="<?php echo $o['id']; ?>"><button type="submit" name="recibir_insumos_orden" class="btn-action" style="width:100%; justify-content:center; background:var(--success); color:white; border:none;" onclick="return confirm('¿Recibir insumos?')"><i class="fas fa-truck-loading"></i> RECIBIR</button></form>
-                    <?php elseif($est == 'SURTIDO'): ?>
+                    <?php if($est != 'TERMINADO'): ?>
                         <a href="finalizar_produccion.php?id=<?php echo $o['id']; ?>" class="btn-action" style="flex:1; justify-content:center; background:#3182ce; color:white;"><i class="fas fa-check-double"></i> FINALIZAR</a>
                     <?php endif; ?>
                 </div>
@@ -303,7 +230,6 @@ if ($detalle_id) {
                 row.style.display = (folio.includes(input) || status.includes(input)) ? "" : "none";
             });
         }
-
         function toggleMenu() {
             document.querySelector('.sidebar').classList.toggle('active');
             document.getElementById('overlay').classList.toggle('active');

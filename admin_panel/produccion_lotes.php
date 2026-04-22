@@ -148,9 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
         :root { --accent: #4c51bf; --dark: #1e293b; --success: #2f855a; }
         body { background: #f8fafc; margin: 0; font-family: sans-serif; }
 
-        /* Estilos Header Mobile */
         .header-mobile { display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--dark); color: white; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
-        
         .main { padding: 25px; transition: 0.3s; }
 
         @media (max-width: 992px) {
@@ -163,15 +161,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
 
         .header-prod { background: var(--accent); color: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; }
         
-        /* Grid de fórmulas */
-        .formulas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
-        .card-formula { background: white; padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        /* Buscador Estilos */
+        .search-container { margin-bottom: 20px; position: relative; }
+        .search-container input { width: 100%; padding: 15px 20px 15px 45px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; box-sizing: border-box; }
+        .search-container i { position: absolute; left: 15px; top: 18px; color: #94a3b8; font-size: 1.2rem; }
+
+        /* Grid de fórmulas - Ajustado para ser más compacto */
+        .formulas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+        .card-formula { background: white; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: 0.2s; }
+        .card-formula:hover { border-color: var(--accent); }
         
-        /* Inputs mejorados */
-        .input-lote { width: 90px; height: 45px; padding: 5px; border: 2px solid #edf2f7; border-radius: 10px; text-align: center; font-weight: 800; font-size: 1.1rem; }
+        .input-lote { width: 70px; height: 40px; padding: 5px; border: 2px solid #edf2f7; border-radius: 8px; text-align: center; font-weight: 800; font-size: 1rem; }
         .input-lote:focus { border-color: var(--accent); outline: none; background: #f0f5ff; }
 
-        /* Reporte de Insumos */
         .report-container { overflow-x: auto; background: white; border-radius: 15px; border: 1px solid #e2e8f0; margin-bottom: 30px; }
         .report-table { width: 100%; border-collapse: collapse; min-width: 600px; }
         .report-table th { background: #f8fafc; padding: 15px; text-align: left; color: #64748b; font-size: 0.8rem; text-transform: uppercase; }
@@ -251,10 +253,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
         <div class="card" style="background:white; padding:25px; border-radius:15px; border: 1px solid #e2e8f0;">
             <form method="POST">
                 <h3 style="margin-top:0; margin-bottom:20px;"><i class="fas fa-fill-drip"></i> Configurar Lotes de Fabricación</h3>
-                <div class="formulas-grid">
+                
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="buscador" placeholder="Buscar fórmula (ej. Lavanda)..." onkeyup="filtrarFormulas()">
+                </div>
+
+                <div class="formulas-grid" id="lista-formulas">
                     <?php foreach($formulas as $f): ?>
-                    <div class="card-formula">
-                        <label style="flex:1; font-weight:700; color:var(--dark);"><?php echo htmlspecialchars($f['nombre_formula']); ?></label>
+                    <div class="card-formula" data-name="<?php echo htmlspecialchars($f['nombre_formula']); ?>">
+                        <label style="flex:1; font-weight:700; color:var(--dark); font-size: 0.9rem;"><?php echo htmlspecialchars($f['nombre_formula']); ?></label>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <input type="number" 
                                    name="lote[<?php echo $f['id_formula']; ?>]" 
@@ -263,11 +271,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
                                    step="0.1" 
                                    value=""
                                    onfocus="if(this.value=='') this.select();">
-                            <span style="color:#64748b; font-weight:bold; font-size:0.8rem;">LTS</span>
+                            <span style="color:#64748b; font-weight:bold; font-size:0.7rem;">LTS</span>
                         </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
+                
                 <button type="submit" name="calcular" style="width:100%; background:var(--dark); color:white; border:none; padding:20px; margin-top:25px; border-radius:12px; font-weight:bold; font-size:1.1rem; cursor:pointer;">
                     ANALIZAR Y CALCULAR INSUMOS
                 </button>
@@ -279,6 +288,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
         function toggleMenu() {
             document.querySelector('.sidebar').classList.toggle('active');
             document.getElementById('overlay').classList.toggle('active');
+        }
+
+        // Función de Búsqueda
+        function filtrarFormulas() {
+            let input = document.getElementById('buscador').value.toLowerCase();
+            let lista = document.getElementById('lista-formulas');
+            let tarjetas = lista.getElementsByClassName('card-formula');
+
+            for (let card of tarjetas) {
+                let nombre = card.getAttribute('data-name').toLowerCase();
+                if (nombre.includes(input)) {
+                    card.style.display = "flex";
+                } else {
+                    card.style.display = "none";
+                }
+            }
         }
     </script>
 </body>

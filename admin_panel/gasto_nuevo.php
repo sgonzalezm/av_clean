@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btn_guardar'])) {
         if($monto > 0){
             $ins = $pdo->prepare("INSERT INTO gastos (descripcion, categoria, monto, usuario_id, fecha_gasto) VALUES (?, ?, ?, ?, NOW())");
             $ins->execute([$desc, $cat, $monto, $u_id]);
-            header("Location: gastos.php?msj=Gasto registrado");
+            header("Location: gasto_nuevo.php?msj=Gasto registrado");
             exit;
         }
     } catch (Exception $e) {
