@@ -3,57 +3,67 @@ require_once '../includes/session.php';
 require_once '../includes/conexion.php';
 verificarSesion();
 
-$mensaje_exito = "";
-
-// --- FUNCIÓN DE AUDITORÍA INTEGRADA ---
-
 // --- PROCESAMIENTO DE DATOS ---
 
-// NUEVO: Procesar actualización de precio
+// 1. Eliminar Múltiplo (NUEVO)
+if (isset($_GET['eliminar_pres'])) {
+    $id_pres = $_GET['eliminar_pres'];
+    $sql = "DELETE FROM insumo_presentaciones WHERE id = ?";
+    $pdo->prepare($sql)->execute([$id_pres]);
+    header("Location: insumos.php"); exit();
+}
+
+// 2. Editar Múltiplo Individual (CORREGIDO ID)
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['editar_presentacion_unica'])) {
+    $id_pres = $_POST['id']; // Usar el ID de la fila de la tabla presentaciones
+    $capacidad = $_POST['capacidad_edit'];
+    $precio = $_POST['precio_edit'];
+
+    $sql = "UPDATE insumo_presentaciones SET cantidad_capacidad = ?, precio_presentacion = ? WHERE id = ?";
+    $pdo->prepare($sql)->execute([$capacidad, $precio, $id_pres]);
+    header("Location: insumos.php"); exit();
+}
+
+// 3. Editar Datos Básicos del Insumo
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['editar_insumo_completo'])) {
+    $id_insumo = $_POST['id_insumo_edit_full'];
+    $nombre = $_POST['nombre_edit'];
+    $unidad = $_POST['unidad_edit'];
+    $id_prov = $_POST['id_proveedor_edit'];
+
+    $sql_update_full = "UPDATE insumos SET nombre = ?, unidad_medida = ?, id_proveedor = ? WHERE id = ?";
+    $pdo->prepare($sql_update_full)->execute([$nombre, $unidad, $id_prov, $id_insumo]);
+    header("Location: insumos.php"); exit();
+}
+
+// 4. Procesar actualización de precio base (Existente)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_precio'])) {
     $id_insumo = $_POST['id_insumo_edit'];
     $nuevo_precio = $_POST['nuevo_precio'];
-
-    $sql_update = "UPDATE insumos SET precio_unitario = ? WHERE id = ?";
-    $stmt = $pdo->prepare($sql_update);
-    if($stmt->execute([$nuevo_precio, $id_insumo])) {
-        // registrarAuditoria($pdo, 'UPDATE', 'insumos', $id_insumo, "Actualizó precio a: $nuevo_precio");
-    }
+    $pdo->prepare("UPDATE insumos SET precio_unitario = ? WHERE id = ?")->execute([$nuevo_precio, $id_insumo]);
     header("Location: insumos.php"); exit();
 }
 
+// 5. Procesar nuevo insumo (Existente)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['nuevo_insumo'])) {
-    $nombre = $_POST['nombre'];
-    $unidad = $_POST['unidad'];
-    $precio = $_POST['precio'];
-    $id_prov = $_POST['id_proveedor']; 
-
-    $sql_insert = "INSERT INTO insumos (nombre, unidad_medida, precio_unitario, id_proveedor) VALUES (?, ?, ?, ?)";
-    $stmt = $pdo->prepare($sql_insert);
-    if($stmt->execute([$nombre, $unidad, $precio, $id_prov])) {
-       $id_nuevo = $pdo->lastInsertId();
-        //registrarAuditoria($pdo, 'INSERT', 'insumos', $id_nuevo, "Creó el insumo: $nombre");
-    }
+    $pdo->prepare("INSERT INTO insumos (nombre, unidad_medida, precio_unitario, id_proveedor) VALUES (?, ?, ?, ?)")
+        ->execute([$_POST['nombre'], $_POST['unidad'], $_POST['precio'], $_POST['id_proveedor']]);
     header("Location: insumos.php"); exit();
 }
 
+// 6. Procesar agregar múltiplo (Existente/Mejorado)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_presentacion'])) {
-    $id_insumo = $_POST['id_insumo_pres'];
-    $capacidad = $_POST['capacidad'];
-    $precio_pres = $_POST['precio_pres']; 
-    
-    $sql_pres = "INSERT INTO insumo_presentaciones (id_insumo, cantidad_capacidad, precio_presentacion) VALUES (?, ?, ?)";
-    if($pdo->prepare($sql_pres)->execute([$id_insumo, $capacidad, $precio_pres])) {
-        //registrarAuditoria($pdo, 'INSERT', 'insumo_presentaciones', $id_insumo, "Agregó múltiplo de $capacidad a un insumo");
-    }
+    $pdo->prepare("INSERT INTO insumo_presentaciones (id_insumo, cantidad_capacidad, precio_presentacion) VALUES (?, ?, ?)")
+        ->execute([$_POST['id_insumo_pres'], $_POST['capacidad'], $_POST['precio_pres']]);
     header("Location: insumos.php"); exit();
 }
 
 // --- CONSULTA ---
+// IMPORTANTE: Se cambió id_insumo por id_presentacion en el GROUP_CONCAT para poder identificar cada fila
 $query_insumos = "
     SELECT i.*, p.nombre_empresa,
-    (SELECT GROUP_CONCAT(CONCAT(cantidad_capacidad, ' ', i.unidad_medida, ' ($', precio_presentacion, ')') ORDER BY cantidad_capacidad ASC SEPARATOR '||') 
-     FROM insumo_presentaciones ip WHERE ip.id_insumo = i.id) as presentaciones_lista
+    (SELECT GROUP_CONCAT(CONCAT(id, ':', cantidad_capacidad, ':', precio_presentacion) SEPARATOR '||') 
+     FROM insumo_presentaciones ip WHERE ip.id_insumo = i.id) as presentaciones_data
     FROM insumos i 
     LEFT JOIN proveedores p ON i.id_proveedor = p.id_proveedor 
     ORDER BY i.nombre ASC";
@@ -69,22 +79,18 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/admin.css">
     <style>
-        .badge-pres { 
-            background: #ebf8ff; color: #2b6cb0; padding: 4px 8px; 
-            border-radius: 6px; font-size: 0.75rem; margin: 2px; 
-            display: inline-block; border: 1px solid #bee3f8;
-        }
-        .modal { display:none; position:fixed; z-index:2000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.7); }
-        .modal-content { background:white; width:90%; max-width:400px; margin: 10% auto; padding:25px; border-radius:12px; }
+        .badge-pres { background: #ebf8ff; color: #2b6cb0; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; margin: 2px; display: inline-block; border: 1px solid #bee3f8; }
+        .modal { display:none; position:fixed; z-index:2000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.7); overflow-y: auto; }
+        .modal-content { background:white; width:90%; max-width:450px; margin: 5% auto; padding:25px; border-radius:12px; position: relative; }
         .form-control { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        .btn-save { background: #28a745; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; }
-        .btn-edit-small { background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 0.9rem; margin-left: 5px; }
-        .btn-edit-small:hover { color: #2563eb; }
+        .btn-save { background: #28a745; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .list-edit-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; background: #fafafa; }
+        .btn-edit-small { background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 0.9rem; }
+        .btn-del { color: #dc3545; background: none; border: none; cursor: pointer; margin-left: 10px; }
     </style>
 </head>
 <body>
     <?php include 'sidebar.php'; ?>
-    
     <div class="main">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
             <h1><i class="fas fa-flask"></i> Materias Primas</h1>
@@ -99,9 +105,9 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
             <thead>
                 <tr>
                     <th>Insumo / Proveedor</th>
-                    <th>Presentaciones (Múltiplos)</th>
+                    <th>Presentaciones</th>
                     <th>Precio Base</th>
-                    <th>Stock Actual</th>
+                    <th>Stock</th>
                     <th>Gestión</th>
                 </tr>
             </thead>
@@ -113,21 +119,27 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
                         <small><?php echo htmlspecialchars($i['nombre_empresa'] ?? 'S/P'); ?></small>
                     </td>
                     <td>
-                        <?php if($i['presentaciones_lista']): 
-                            $tags = explode('||', $i['presentaciones_lista']);
-                            foreach($tags as $tag) echo "<span class='badge-pres'>$tag</span>";
-                        else: echo "<small style='color:#ccc;'>Única presentación</small>"; endif; ?>
+                        <?php 
+                        if($i['presentaciones_data']): 
+                            $pres = explode('||', $i['presentaciones_data']);
+                            foreach($pres as $p_item) {
+                                $data = explode(':', $p_item);
+                                if(count($data) == 3){
+                                    echo "<span class='badge-pres'>{$data[1]} {$i['unidad_medida']} ($${data[2]})</span>";
+                                }
+                            }
+                        else: echo "<small style='color:#ccc;'>Única</small>"; endif; 
+                        ?>
                     </td>
                     <td>
                         $<?php echo number_format($i['precio_unitario'], 2); ?>
-                        <button class="btn-edit-small" title="Editar Precio" onclick="abrirModalPrecio(<?php echo $i['id']; ?>, '<?php echo addslashes($i['nombre']); ?>', <?php echo $i['precio_unitario']; ?>)">
-                            <i class="fas fa-edit"></i>
-                        </button>
+                        <button class="btn-edit-small" onclick="abrirModalPrecio(<?php echo $i['id']; ?>, '<?php echo addslashes($i['nombre']); ?>', <?php echo $i['precio_unitario']; ?>)"><i class="fas fa-edit"></i></button>
                     </td>
                     <td><strong><?php echo (float)$i['stock_actual']; ?> <?php echo $i['unidad_medida']; ?></strong></td>
-                    <td>
-                        <button class="btn-pres" onclick="abrirModalPres(<?php echo $i['id']; ?>, '<?php echo addslashes($i['nombre']); ?>')">
-                            <i class="fas fa-plus"></i> Múltiplo
+                    <td style="white-space:nowrap;">
+                        <button class="btn" style="background:#f59e0b; color:white; padding:6px 10px; border-radius:6px; border:none; cursor:pointer;" 
+                                onclick='abrirModalEditar(<?php echo json_encode($i); ?>)'>
+                            <i class="fas fa-pen"></i> Editar
                         </button>
                     </td>
                 </tr>
@@ -136,46 +148,79 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         </table>
     </div>
 
-    <div id="modalInsumo" class="modal">
+    <div id="modalEditarFull" class="modal">
         <div class="modal-content">
-            <h3 style="margin-top:0;"><i class="fas fa-plus-circle"></i> Nuevo Insumo</h3>
+            <h3 style="margin-bottom:10px;"><i class="fas fa-pen"></i> Editar Insumo</h3>
             <form method="POST">
-                <input type="hidden" name="nuevo_insumo" value="1">
-                <label>Nombre del Químico:</label>
-                <input type="text" name="nombre" class="form-control" placeholder="Ej. LESS 70%" required>
+                <input type="hidden" name="editar_insumo_completo" value="1">
+                <input type="hidden" name="id_insumo_edit_full" id="id_insumo_edit_full">
                 
-                <label>Unidad de Medida:</label>
-                <input type="text" name="unidad" class="form-control" placeholder="Ej. KG o LT" required>
+                <label>Nombre:</label>
+                <input type="text" name="nombre_edit" id="nombre_edit" class="form-control" required>
                 
-                <label>Precio Unitario Base:</label>
-                <input type="number" name="precio" step="0.0001" class="form-control" placeholder="0.00" required>
-                
-                <label>Proveedor Principal:</label>
-                <select name="id_proveedor" class="form-control">
-                    <?php foreach ($proveedores as $p): ?>
-                        <option value="<?php echo $p['id_proveedor']; ?>"><?php echo $p['nombre_empresa']; ?></option>
-                    <?php endforeach; ?>
-                </select>
-                
-                <button type="submit" class="btn-save">Guardar Insumo</button>
-                <button type="button" onclick="document.getElementById('modalInsumo').style.display='none'" style="width:100%; margin-top:10px; background:none; border:none; color:#666; cursor:pointer;">Cancelar</button>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label>Unidad:</label>
+                        <input type="text" name="unidad_edit" id="unidad_edit" class="form-control" required>
+                    </div>
+                    <div style="flex:2;">
+                        <label>Proveedor:</label>
+                        <select name="id_proveedor_edit" id="id_proveedor_edit" class="form-control">
+                            <?php foreach ($proveedores as $p): ?>
+                                <option value="<?php echo $p['id_proveedor']; ?>"><?php echo $p['nombre_empresa']; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn-save">Actualizar Datos Básicos</button>
+            </form>
+
+            <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>Múltiplos</h4>
+                <button type="button" class="btn" style="font-size:0.8rem; background:#4c51bf; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;" onclick="abrirModalPresDirecto()">
+                    <i class="fas fa-plus"></i> Nuevo Múltiplo
+                </button>
+            </div>
+
+            <div id="lista_multiplos_edit" style="margin-top:10px;"></div>
+            
+            <button type="button" onclick="document.getElementById('modalEditarFull').style.display='none'" style="width:100%; margin-top:15px; background:#eee; border:none; padding:10px; border-radius:8px; cursor:pointer;">Cerrar</button>
+        </div>
+    </div>
+
+    <div id="modalEditSinglePres" class="modal" style="z-index:3000;">
+        <div class="modal-content" style="max-width:350px; margin-top:15%;">
+            <h4>Editar Múltiplo</h4>
+            <form method="POST">
+                <input type="hidden" name="editar_presentacion_unica" value="1">
+                <input type="hidden" name="id" id="id_pres_val">
+                <label>Capacidad:</label>
+                <input type="number" name="capacidad_edit" id="cap_val" step="0.001" class="form-control" required>
+                <label>Precio:</label>
+                <input type="number" name="precio_edit" id="pre_val" step="0.01" class="form-control" required>
+                <button type="submit" class="btn-save" style="background:#3b82f6;">Guardar Cambio</button>
+                <button type="button" onclick="document.getElementById('modalEditSinglePres').style.display='none'" style="width:100%; margin-top:10px; border:none; background:none; color:red; cursor:pointer;">Cancelar</button>
             </form>
         </div>
     </div>
 
+    <div id="modalInsumo" class="modal"><div class="modal-content">... (Tu formulario de nuevo insumo) ...</div></div>
+    
     <div id="modalPres" class="modal">
         <div class="modal-content">
-            <h3 id="pres_nombre_insumo"></h3>
+            <h3 id="pres_nombre_insumo">Agregar Múltiplo</h3>
             <form method="POST">
                 <input type="hidden" name="add_presentacion" value="1">
                 <input type="hidden" name="id_insumo_pres" id="id_insumo_pres">
-                <label>Capacidad (Ej. 20 para porrón):</label>
+                <label>Capacidad:</label>
                 <input type="number" name="capacidad" step="0.001" class="form-control" required>
-                <label>Precio de esta presentación:</label>
+                <label>Precio:</label>
                 <input type="number" name="precio_pres" step="0.01" class="form-control" required>
                 <button type="submit" class="btn-save" style="background:#4c51bf;">Guardar Múltiplo</button>
+                <button type="button" onclick="document.getElementById('modalPres').style.display='none'" style="width:100%; margin-top:10px; background:none; border:none; cursor:pointer;">Cerrar</button>
             </form>
-            <button type="button" onclick="document.getElementById('modalPres').style.display='none'" style="width:100%; margin-top:10px; border:none; background:#eee; padding:10px; border-radius:8px;">Cerrar</button>
         </div>
     </div>
 
@@ -185,25 +230,70 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
             <form method="POST">
                 <input type="hidden" name="update_precio" value="1">
                 <input type="hidden" name="id_insumo_edit" id="id_insumo_edit">
-                
-                <label>Nuevo Precio Unitario:</label>
                 <input type="number" name="nuevo_precio" id="nuevo_precio_input" step="0.0001" class="form-control" required>
-                
-                <button type="submit" class="btn-save" style="background:#3b82f6;">Actualizar Precio</button>
-                <button type="button" onclick="document.getElementById('modalPrecio').style.display='none'" style="width:100%; margin-top:10px; border:none; background:#eee; padding:10px; border-radius:8px;">Cancelar</button>
+                <button type="submit" class="btn-save" style="background:#3b82f6;">Actualizar</button>
             </form>
         </div>
     </div>
 
     <script>
-        // Función para abrir modal de múltiplos
-        function abrirModalPres(id, nombre) {
-            document.getElementById('id_insumo_pres').value = id;
-            document.getElementById('pres_nombre_insumo').innerText = "Múltiplo para: " + nombre;
+        let currentInsumoId = null;
+        let currentInsumoNombre = "";
+
+        function abrirModalEditar(insumo) {
+            currentInsumoId = insumo.id;
+            currentInsumoNombre = insumo.nombre;
+            document.getElementById('id_insumo_edit_full').value = insumo.id;
+            document.getElementById('nombre_edit').value = insumo.nombre;
+            document.getElementById('unidad_edit').value = insumo.unidad_medida;
+            document.getElementById('id_proveedor_edit').value = insumo.id_proveedor;
+
+            const listaDiv = document.getElementById('lista_multiplos_edit');
+            listaDiv.innerHTML = "";
+            
+            if (insumo.presentaciones_data) {
+                const pres = insumo.presentaciones_data.split('||');
+                pres.forEach(p => {
+                    const [idp, cap, pre] = p.split(':');
+                    listaDiv.innerHTML += `
+                        <div class="list-edit-item">
+                            <span><strong>${cap}</strong> ${insumo.unidad_medida} - $${pre}</span>
+                            <div>
+                                <button type="button" class="btn-edit-small" onclick="editarUnSoloMultiplo(${idp}, ${cap}, ${pre})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn-del" onclick="eliminarMultiplo(${idp})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>`;
+                });
+            } else {
+                listaDiv.innerHTML = "<p style='color:#999; font-size:0.9rem;'>No hay múltiplos registrados.</p>";
+            }
+            document.getElementById('modalEditarFull').style.display = 'block';
+        }
+
+        function abrirModalPresDirecto() {
+            document.getElementById('id_insumo_pres').value = currentInsumoId;
+            document.getElementById('pres_nombre_insumo').innerText = "Nuevo Múltiplo para: " + currentInsumoNombre;
             document.getElementById('modalPres').style.display = 'block';
         }
 
-        // NUEVO: Función para abrir modal de edición de precio
+        function editarUnSoloMultiplo(id, cap, pre) {
+            document.getElementById('id_pres_val').value = id;
+            document.getElementById('cap_val').value = cap;
+            document.getElementById('pre_val').value = pre;
+            document.getElementById('modalEditSinglePres').style.display = 'block';
+        }
+
+        function eliminarMultiplo(id) {
+            if(confirm('¿Seguro que deseas eliminar este múltiplo?')) {
+                window.location.href = 'insumos.php?eliminar_pres=' + id;
+            }
+        }
+
+        // ... funciones de búsqueda y modal precio se mantienen igual ...
         function abrirModalPrecio(id, nombre, precioActual) {
             document.getElementById('id_insumo_edit').value = id;
             document.getElementById('edit_nombre_insumo').innerText = "Editar precio: " + nombre;
@@ -214,10 +304,7 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         function filterTable() {
             let filter = document.getElementById("searchInput").value.toLowerCase();
             let rows = document.querySelectorAll("#insumosTable tbody tr");
-            rows.forEach(row => {
-                let text = row.innerText.toLowerCase();
-                row.style.display = text.includes(filter) ? "" : "none";
-            });
+            rows.forEach(row => { row.style.display = row.innerText.toLowerCase().includes(filter) ? "" : "none"; });
         }
 
         window.onclick = function(e) { if (e.target.className === 'modal') e.target.style.display = "none"; }
