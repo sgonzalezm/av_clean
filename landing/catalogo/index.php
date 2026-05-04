@@ -13,7 +13,7 @@ try {
     die("Error de conexión: " . $e->getMessage());
 }
 
-// 2. PROCESAR FILTROS DE BÚSQUEDA
+// 2. PROCESAR FILTROS
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $categoria = isset($_GET['categoria']) ? trim($_GET['categoria']) : '';
 
@@ -43,94 +43,205 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>Catálogo de Productos | AHD Clean</title>
+    <title>Catálogo AHD Clean | Innovación en Limpieza</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../css/store.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Ajustes para que el NAV sea flexible y no se amontone */
-        .nav-flex { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-        .nav-right { display: flex; align-items: center; gap: 12px; }
-        
-        /* Botón de usuario / Mi Cuenta */
-        .btn-user-nav { 
-            background: rgba(255,255,255,0.1); 
-            color: white; 
-            padding: 8px 12px; 
-            border-radius: 8px; 
-            text-decoration: none; 
-            font-size: 0.85rem; 
-            font-weight: 600;
-            border: 1px solid rgba(255,255,255,0.2);
+        :root {
+            --primary: #1a365d;
+            --accent: #002bff;
+            --bg-light: #f8fafc;
+            --text-dark: #2d3748;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            margin: 0;
+            color: var(--text-dark);
+        }
+
+        /* --- NAVEGACIÓN FULL WIDTH --- */
+        .nav-modern {
+            background: var(--primary);
+            padding: 15px 4%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .brand {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 15px;
+            text-decoration: none;
+            color: white;
         }
-        .btn-user-nav:hover { background: rgba(255,255,255,0.2); }
 
-        /* Modal y Timeline */
-        .modal-rastreo { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
-        .modal-content { background: white; width: 90%; max-width: 450px; margin: 8% auto; padding: 30px; border-radius: 15px; position: relative; font-family: 'Inter', sans-serif; }
-        .close-btn { position: absolute; right: 20px; top: 15px; cursor: pointer; font-size: 1.5rem; color: #a0aec0; }
-        .rastreo-input-group { display: flex; gap: 10px; margin-top: 20px; }
-        .rastreo-input-group input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
-        .timeline { margin-top: 30px; border-left: 3px solid #edf2f7; margin-left: 20px; padding-left: 30px; display: none; }
-        .step { margin-bottom: 25px; position: relative; color: #cbd5e1; }
-        .step i { position: absolute; left: -42px; background: white; font-size: 1.2rem; }
-        .step.active { color: #2d3748; font-weight: 700; }
-        .step.active i { color: #38a169; }
+        .logo-img { height: 45px; }
 
-        @media (max-width: 600px) {
-            .btn-rastreo-nav span, .btn-user-nav span { display: none; } /* En móvil solo iconos */
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
+
+        .btn-nav {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .btn-nav:hover { background: var(--accent); transform: translateY(-2px); }
+
+        .badge-cart {
+            background: #ff3b30;
+            color: white;
+            padding: 2px 7px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            position: absolute;
+            top: -5px;
+            right: -10px;
+        }
+
+        /* --- LAYOUT --- */
+        .main-content {
+            padding: 40px 4%;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .filter-bar {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 50px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .filter-group { display: flex; flex-direction: column; gap: 8px; }
+        .filter-group label { font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
+        .filter-group input, .filter-group select { padding: 12px 15px; border: 1px solid #e2e8f0; border-radius: 10px; min-width: 200px; }
+
+        /* --- GRID PRODUCTOS --- */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            transition: all 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #f1f5f9;
+        }
+
+        .product-card:hover { transform: translateY(-10px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+
+        .image-container {
+            height: 220px;
+            background: #f8fafc;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .image-container img { max-width: 90%; max-height: 90%; object-fit: contain; }
+
+        .price-tag { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-bottom: 20px; }
+
+        .card-buttons { display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px; margin-top: auto; }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            text-decoration: none;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* ESTE ES EL BOTÓN CLAVE */
+        .btn-agregar-ajax {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-agregar-ajax:hover { opacity: 0.9; }
+
+        /* MODALES */
+        .modal-rastreo { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
+        .modal-content { background: white; width: 90%; max-width: 480px; margin: 5% auto; padding: 35px; border-radius: 25px; position: relative; }
     </style>
 </head>
 <body>
-    <div class="nav">
-        <div class="container nav-flex">
-            <div>
-                <a href="/">← <span>Volver</span></a>
-            </div>
-            
-            <div class="nav-right">
-                <button class="btn-rastreo-nav" onclick="mostrarModalRastreo()">
-                    <i class="fas fa-truck"></i> <span>Rastrear</span>
-                </button>
 
-                <?php if ($cliente_logueado): ?>
-                    <a href="ver_carrito.php" class="btn-user-nav">
-                        <i class="fas fa-user-circle"></i> <span>Hola, <?php echo $nombre_cliente; ?></span>
-                    </a>
-                <?php else: ?>
-                    <a href="ver_carrito.php" class="btn-user-nav">
-                        <i class="fas fa-sign-in-alt"></i> <span>Entrar</span>
-                    </a>
-                <?php endif; ?>
+    <nav class="nav-modern">
+        <a href="/" class="brand">
+            <img src="../css/Logo_AHD_Clean.png" width="80" height="80" alt="Logo AHD Clean" class="logo-img"> 
+            <span style="font-weight: 800; font-size: 1.2rem;">AHD <span style="font-weight: 300;">CLEAN</span></span>
+        </a>
 
-                <a href="ver_carrito.php" class="carrito-link">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span id="carrito-count" class="badge">
-                        <?php echo isset($_SESSION['carrito']) ? array_sum($_SESSION['carrito']) : 0; ?>
-                    </span>
-                </a>
-            </div>
+        <div class="nav-actions">
+            <button class="btn-nav" onclick="mostrarModalRastreo()">
+                <i class="fas fa-truck-fast"></i> <span>Rastrear</span>
+            </button>
+
+            <a href="ver_carrito.php" class="btn-nav" style="position: relative; background: var(--white); color: var(--primary);">
+                <i class="fas fa-cart-shopping"></i>
+                <span id="carrito-count" class="badge-cart">
+                    <?php echo isset($_SESSION['carrito']) ? array_sum($_SESSION['carrito']) : 0; ?>
+                </span>
+            </a>
         </div>
-    </div>
+    </nav>
 
-    <div class="container" style="margin-top: 40px;">
-        <h2 style="text-align: center; margin-bottom: 30px;">Nuestros Productos</h2>
-        
-        <div class="filtros">
-            <form method="GET" style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 40px;">
-                <div class="filtro-grupo">
-                    <label>🔍 Buscar:</label>
-                    <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Nombre...">
+    <main class="main-content">
+        <div class="filter-bar">
+            <form method="GET" style="display: contents;">
+                <div class="filter-group">
+                    <label>Buscar</label>
+                    <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>">
                 </div>
-                
-                <div class="filtro-grupo">
-                    <label>📂 Sección:</label>
+                <div class="filter-group">
+                    <label>Categoría</label>
                     <select name="categoria">
                         <option value="">Todas</option>
                         <?php foreach ($categorias as $cat): ?>
@@ -140,169 +251,74 @@ $categorias = $stmt_categorias->fetchAll(PDO::FETCH_COLUMN);
                         <?php endforeach; ?>
                     </select>
                 </div>
-                
-                <div style="align-self: flex-end;">
-                    <button type="submit" class="btn-filtro" style="background: #1a365d; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Filtrar</button>
-                </div>
+                <button type="submit" class="btn-nav" style="background: var(--primary);">Filtrar</button>
             </form>
         </div>
-        
-        <div class="productos" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px;">
-            <?php if (count($productos) > 0): ?>
-                <?php foreach ($productos as $p): ?>
-                <div class="producto" style="border: 1px solid #edf2f7; padding: 20px; border-radius: 15px; display: flex; flex-direction: column; background: white;">
-                    <div style="height: 180px; display: flex; align-items: center; justify-content: center; background: #f7fafc; border-radius: 10px; margin-bottom: 15px; overflow: hidden;">
-                        <?php if (!empty($p['imagen_url'])): ?>
-                            <img src="<?php echo htmlspecialchars($p['imagen_url']); ?>" alt="<?php echo htmlspecialchars($p['nombre']); ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                        <?php else: ?>
-                            <span style="color: #cbd5e1;">Sin imagen</span>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <span style="font-size: 0.75rem; color: #3182ce; font-weight: 700; text-transform: uppercase;"><?php echo htmlspecialchars($p['categoria']); ?></span>
-                    <h3 style="margin: 10px 0; font-size: 1.1rem;"><?php echo htmlspecialchars($p['nombre']); ?></h3>
-                    <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 15px; color: #2d3748;">$<?php echo number_format($p['precio'], 2); ?></div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto;">
-                        <a href="detalles.php?id=<?php echo $p['id']; ?>" class="btn" style="background: #edf2f7; color: #2d3748; text-align: center; padding: 10px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 600;">Ver más</a>
-                        <button class="btn-agregar-ajax" data-id="<?php echo $p['id']; ?>" style="background: #002bff; color: white; border:none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">Agregar</button>
-                    </div>
+
+        <div class="products-grid">
+            <?php foreach ($productos as $p): ?>
+            <div class="product-card">
+                <div class="image-container">
+                    <?php if (!empty($p['imagen_url'])): ?>
+                        <img src="<?php echo htmlspecialchars($p['imagen_url']); ?>">
+                    <?php else: ?>
+                        <i class="fas fa-box-open" style="font-size: 3rem; color: #e2e8f0;"></i>
+                    <?php endif; ?>
                 </div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <div style="grid-column: 1/-1; text-align: center; padding: 50px;">📦 No hay resultados.</div>
-            <?php endif; ?>
+                
+                <h3 style="margin-bottom: 10px;"><?php echo htmlspecialchars($p['nombre']); ?></h3>
+                <div class="price-tag">$<?php echo number_format($p['precio'], 2); ?></div>
+                
+                <div class="card-buttons">
+                    <a href="detalles.php?id=<?php echo $p['id']; ?>" class="btn-secondary">Ver más</a>
+                    <button class="btn-agregar-ajax" data-id="<?php echo $p['id']; ?>">
+                        <i class="fas fa-plus"></i> Agregar
+                    </button>
+                </div>
+            </div>
+            <?php endforeach; ?>
         </div>
-    </div>
-
-    <div id="modalRastreo" class="modal-rastreo">
-        <div class="modal-content">
-            <span class="close-btn" onclick="cerrarModalRastreo()">&times;</span>
-            <h3>Rastrear Pedido</h3>
-            <div class="rastreo-input-group">
-                <input type="number" id="inputPedido" placeholder="ID de pedido...">
-                <button onclick="buscarRastreo()" style="background: #1a365d; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer;">Buscar</button>
-            </div>
-            <div id="timelineRastreo" class="timeline">
-                <div id="s1" class="step"><i class="fas fa-check-circle"></i> Recibido</div>
-                <div id="s2" class="step"><i class="fas fa-flask"></i> Preparación</div>
-                <div id="s3" class="step"><i class="fas fa-truck"></i> En Camino</div>
-                <div id="s4" class="step"><i class="fas fa-home"></i> Entregado</div>
-            </div>
-            <div id="errorRastreo" style="display:none; color: #c53030; margin-top: 15px;"></div>
-        </div>
-    </div>
-
-    <div id="ahd-chat-btn" onclick="toggleChat()" style="position:fixed; bottom:20px; right:20px; background:#2b6cb0; color:white; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.3); z-index:9999;">
-            <i class="fas fa-comment-dots" style="font-size:24px;"></i>
-        </div>
-
-        <div id="ahd-chat-window" style="display:none; position:fixed; bottom:90px; right:20px; width:350px; height:450px; background:white; border-radius:15px; box-shadow:0 5px 20px rgba(0,0,0,0.2); flex-direction:column; overflow:hidden; z-index:9999; border: 1px solid #eee;">
-            <div style="background:#2b6cb0; color:white; padding:15px; font-weight:bold; display:flex; justify-content:space-between;">
-                <span>Asistente AHD Clean</span>
-                <span onclick="toggleChat()" style="cursor:pointer;">&times;</span>
-            </div>
-            <div id="chat-messages" style="flex:1; padding:15px; overflow-y:auto; font-size:14px; display:flex; flex-direction:column; gap:10px;">
-                <div style="background:#f1f5f9; padding:10px; border-radius:10px; align-self:flex-start;">¡Hola! Soy tu asesor experto. ¿Qué necesitas limpiar hoy?</div>
-            </div>
-            <div style="padding:10px; border-top:1px solid #eee; display:flex; gap:5px;">
-                <input type="text" id="user-input" placeholder="Pregunta algo..." style="flex:1; border:1px solid #ddd; padding:8px; border-radius:5px; outline:none;">
-                <button onclick="sendMessage()" style="background:#2b6cb0; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
-            </div>
-        </div>
-
-        <script>
-        function toggleChat() {
-            const win = document.getElementById('ahd-chat-window');
-            win.style.display = (win.style.display === 'none' || win.style.display === '') ? 'flex' : 'none';
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('user-input');
-            const container = document.getElementById('chat-messages');
-            if(!input.value) return;
-
-            // Mensaje Usuario
-            container.innerHTML += `<div style="background:#e2e8f0; padding:10px; border-radius:10px; align-self:flex-end;">${input.value}</div>`;
-            const userMsg = input.value;
-            input.value = '';
-
-            // Llamada a tu PHP en Hostinger
-            try {
-                const response = await fetch('api_asistente_cliente.php', {
-                    method: 'POST',
-                    body: JSON.stringify({ mensaje: userMsg }),
-                    headers: {'Content-Type': 'application/json'}
-                });
-                const data = await response.json();
-                container.innerHTML += `<div style="background:#f1f5f9; padding:10px; border-radius:10px; align-self:flex-start;">${data.respuesta}</div>`;
-                container.scrollTop = container.scrollHeight;
-            } catch(e) {
-                container.innerHTML += `<div style="color:red; font-size:10px;">Error de conexión.</div>`;
-            }
-        }
-        </script>
+    </main>
 
     <script>
-    function mostrarModalRastreo() { document.getElementById('modalRastreo').style.display = 'block'; }
-    function cerrarModalRastreo() { 
-        document.getElementById('modalRastreo').style.display = 'none';
-        document.getElementById('timelineRastreo').style.display = 'none';
-        document.getElementById('errorRastreo').style.display = 'none';
-    }
-
-    function buscarRastreo() {
-        const id = document.getElementById('inputPedido').value;
-        if(!id) return;
-        fetch(`obtener_status.php?id=${id}`)
-            .then(res => res.json())
-            .then(data => {
-                if(data.error) {
-                    document.getElementById('errorRastreo').textContent = "No encontrado.";
-                    document.getElementById('errorRastreo').style.display = 'block';
-                    document.getElementById('timelineRastreo').style.display = 'none';
-                } else {
-                    document.getElementById('errorRastreo').style.display = 'none';
-                    document.getElementById('timelineRastreo').style.display = 'block';
-                    actualizarTimeline(data.status);
-                }
-            });
-    }
-
-    function actualizarTimeline(status) {
-        const pasos = ['s1', 's2', 's3', 's4'];
-        pasos.forEach(p => document.getElementById(p).classList.remove('active'));
-        document.getElementById('s1').classList.add('active');
-        if(['Confirmado', 'En Preparación'].includes(status)) document.getElementById('s2').classList.add('active');
-        if(['En Camino', 'Enviado'].includes(status)) {
-            document.getElementById('s2').classList.add('active');
-            document.getElementById('s3').classList.add('active');
-        }
-        if(['Completado', 'Entregado'].includes(status)) {
-            document.getElementById('s2').classList.add('active');
-            document.getElementById('s3').classList.add('active');
-            document.getElementById('s4').classList.add('active');
-        }
-    }
-
+    // 1. FUNCIÓN PARA ACTUALIZAR EL CONTADOR
     function actualizarContadorCarrito() {
         fetch('obtener_total_carrito.php')
             .then(res => res.text())
             .then(total => {
-                document.getElementById('carrito-count').textContent = total.trim() || "0";
-            });
+                const badge = document.getElementById('carrito-count');
+                if(badge) badge.textContent = total.trim() || "0";
+            })
+            .catch(err => console.error("Error actualizando contador:", err));
     }
 
-    document.querySelectorAll('.btn-agregar-ajax').forEach(boton => {
-        boton.addEventListener('click', function(e) {
-            const id = this.getAttribute('data-id');
-            fetch(`agregar_carrito.php?id=${id}`).then(() => {
-                actualizarContadorCarrito();
-                this.textContent = "¡Añadido!";
-                setTimeout(() => this.textContent = "Agregar", 1000);
-            });
-        });
+    // 2. EVENT LISTENER PARA LOS BOTONES (Corregido para la nueva clase)
+    document.addEventListener('click', function(e) {
+        // Buscamos si el elemento clickeado es el botón de agregar
+        if (e.target && (e.target.classList.contains('btn-agregar-ajax') || e.target.parentElement.classList.contains('btn-agregar-ajax'))) {
+            const boton = e.target.classList.contains('btn-agregar-ajax') ? e.target : e.target.parentElement;
+            const id = boton.getAttribute('data-id');
+            
+            if(id) {
+                fetch(`agregar_carrito.php?id=${id}`)
+                    .then(() => {
+                        actualizarContadorCarrito();
+                        const textoOriginal = boton.innerHTML;
+                        boton.innerHTML = "<i class='fas fa-check'></i> ¡Añadido!";
+                        boton.style.background = "#28a745";
+                        
+                        setTimeout(() => {
+                            boton.innerHTML = textoOriginal;
+                            boton.style.background = "";
+                        }, 1000);
+                    })
+                    .catch(err => alert("Error al agregar al carrito"));
+            }
+        }
     });
+
+    function mostrarModalRastreo() { document.getElementById('modalRastreo').style.display = 'block'; }
+    function cerrarModalRastreo() { document.getElementById('modalRastreo').style.display = 'none'; }
     </script>
 </body>
 </html>

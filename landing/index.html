@@ -3,510 +3,377 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AHD Clean | Productos Químicos de Limpieza Profesional</title>
-    <meta name="description" content="Fabricantes de productos químicos de limpieza para hogar, industria PYMES y automotriz. Cloro, desengrasantes, pulimentos y más.">
-    <meta name="keywords" content="productos químicos, limpieza, cloro, desengrasante, lavatrastes, armor-all, fábrica, maquila, distribuidores">
+    <title>AHD Clean | Soluciones Químicas Profesionales</title>
+    <meta name="description" content="Fabricantes de productos químicos de limpieza para hogar, industria y automotriz.">
     
-    <!-- Fuentes de Google -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome para iconos -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Nuestros estilos -->
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/responsive.css">
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #0f172a;
+            --accent: #38bdf8;
+            --success: #22c55e;
+            --white: #ffffff;
+            --gray-light: #f1f5f9;
+            --shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
+        body { font-family: 'Roboto', sans-serif; color: var(--secondary); background: #fff; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 25px; }
+        .highlight { color: var(--primary); }
+        .btn { padding: 12px 25px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: 0.3s; cursor: pointer; border: none; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #1d4ed8; transform: translateY(-2px); }
+        .btn-secondary { background: var(--secondary); color: white; }
+
+        /* NAVBAR */
+        .navbar { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); position: fixed; width: 100%; top: 0; z-index: 1000; padding: 10px 0; box-shadow: var(--shadow); }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 15px; text-decoration: none; }
+        .logo-text .logo-main { display: block; font-family: 'Montserrat'; font-weight: 800; font-size: 1.6rem; color: var(--primary); line-height: 1; }
+        .logo-text .logo-sub { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; color: var(--secondary); }
+        .nav-menu { display: flex; gap: 20px; align-items: center; }
+        .nav-link { text-decoration: none; color: var(--secondary); font-weight: 500; font-size: 0.95rem; }
+        .btn-nav { background: var(--primary); color: white; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-weight: 600; }
+        .menu-toggle { display: none; font-size: 1.5rem; background: none; border: none; cursor: pointer; }
+
+        /* HERO SECTION */
+        .hero { padding: 180px 0 100px; background: radial-gradient(circle at top right, #eff6ff 0%, #ffffff 60%); min-height: 100vh; }
+        .hero-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 60px; align-items: center; }
+        .hero-title { font-size: 3.8rem; font-family: 'Montserrat'; line-height: 1.1; margin-bottom: 25px; }
+        .hero-subtitle { font-size: 1.25rem; color: #475569; margin-bottom: 40px; }
+        
+        /* TARJETAS FILTRADO HERO */
+        .product-display { display: flex; flex-direction: column; gap: 15px; }
+        .product-item { 
+            display: flex; align-items: center; gap: 20px; padding: 25px; border-radius: 18px; 
+            text-decoration: none; color: inherit; transition: 0.4s; border: 1px solid rgba(0,0,0,0.05);
+            background: white; box-shadow: var(--shadow);
+        }
+        .product-item:hover { transform: scale(1.03); border-color: var(--primary); }
+        .product-item i { font-size: 1.8rem; width: 50px; }
+        .product-item h4 { font-family: 'Montserrat'; font-size: 1.2rem; }
+
+        /* SECCIONES GENERALES */
+        section { padding: 100px 0; }
+        .section-header { text-align: center; margin-bottom: 60px; }
+        .section-header h2 { font-size: 2.5rem; font-family: 'Montserrat'; margin-bottom: 15px; }
+
+        /* CATEGORIAS GRID */
+        .categories-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .category-card { background: var(--gray-light); padding: 40px; border-radius: 20px; transition: 0.3s; }
+        .category-card:hover { background: white; box-shadow: var(--shadow); }
+        .category-icon { font-size: 2.5rem; color: var(--primary); margin-bottom: 20px; }
+        .category-products { list-style: none; margin: 20px 0; }
+        .category-products li { margin-bottom: 10px; font-size: 0.95rem; display: flex; align-items: center; gap: 10px; }
+        .category-products li i { color: var(--success); font-size: 0.8rem; }
+
+        /* SERVICES */
+        .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; }
+        .service-card { border: 1px solid #e2e8f0; padding: 30px; border-radius: 15px; position: relative; }
+        .service-number { position: absolute; top: 20px; right: 20px; font-size: 2rem; font-weight: 800; opacity: 0.1; }
+
+        /* CONTACT FORM */
+        .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { 
+            width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-family: inherit;
+        }
+        .form-group input:focus { border-color: var(--primary); }
+
+        /* WHATSAPP & FOOTER */
+        .whatsapp-button { position: fixed; bottom: 30px; right: 30px; background: #25d366; color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .footer { background: var(--secondary); color: white; padding: 80px 0 30px; }
+        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 40px; margin-bottom: 50px; }
+        .footer-col h4 { margin-bottom: 25px; font-family: 'Montserrat'; }
+        .footer-links { list-style: none; }
+        .footer-links li { margin-bottom: 12px; }
+        .footer-links a { color: #94a3b8; text-decoration: none; transition: 0.3s; }
+        .footer-links a:hover { color: var(--accent); }
+
+        @media (max-width: 992px) {
+            .hero-grid, .contact-grid { grid-template-columns: 1fr; }
+            .hero { text-align: center; padding-top: 140px; }
+            .hero-title { font-size: 2.8rem; }
+            .menu-toggle { display: block; }
+            .nav-menu { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: white; padding: 20px; box-shadow: var(--shadow); }
+            .nav-menu.active { display: flex; }
+            .footer-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
 </head>
 <body>
-    <!-- Barra de navegación -->
+
     <nav class="navbar">
-        <div class="container">
+        <div class="container nav-container">
             <a href="#" class="logo">
-                <!--<img class="logo-img" src="../css/logo_ahd_no_fondo.png" alt="Logo AHD Clean">-->
-                <!--<div class="logo-icon">    
-                    <i class="fas fa-flask"></i>
-                </div>-->
-                <div>
-                    <img  class="logo-img" src="css/Logo_AHD_Clean.png" width="80" height="80" alt="Logo AHD Clean">
-                </div>
+                <img src="css/Logo_AHD_Clean.png" width="60" height="60" alt="Logo AHD Clean">
                 <div class="logo-text">
                     <span class="logo-main">AHD Clean</span>
-                    <span class="logo-sub">Chemical solutions</span>
+                    <span class="logo-sub">Chemical Solutions</span>
                 </div>
             </a>
             
-            <button class="menu-toggle" id="menuToggle">
-                <i class="fas fa-bars"></i>
-            </button>
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             
             <div class="nav-menu" id="navMenu">
-                <a href="#inicio" class="nav-link active">Inicio</a>
+                <a href="#inicio" class="nav-link">Inicio</a>
                 <a href="#productos" class="nav-link">Productos</a>
                 <a href="#servicios" class="nav-link">Servicios</a>
                 <a href="#nosotros" class="nav-link">Nosotros</a>
                 <a href="#contacto" class="nav-link">Contacto</a>
-                <a href="/catalogo/" class="btn-nav">Catalogo</a>
-                <a href="/admin_panel/login.php" class="btn-nav">Socios</a>
-                <a href="#distribuidores" class="btn-nav btn-secondary">Soy Distribuidor</a>
+                <a href="/catalogo/index.php" class="btn-nav">Catálogo</a>
+                <a href="/admin_panel/login.php" class="btn-nav" style="background: var(--secondary);">Socios</a>
             </div>
         </div>
     </nav>
 
-    <!-- Sección Hero -->
     <section class="hero" id="inicio">
         <div class="container">
-            <div class="hero-content">
-                <h1 class="hero-title">Limpieza Profesional <span class="highlight">a Nivel Industrial</span></h1>
-                <p class="hero-subtitle">Fabricamos productos químicos de alta calidad para hogar, industria y automotriz. Más de 50 fórmulas patentadas para cada necesidad.</p>
-                
-                <div class="hero-buttons">
-                    <a href="#productos" class="btn btn-primary">
-                        <i class="fas fa-vial"></i> Ver Productos
-                    </a>
-                    <a href="#contacto" class="btn btn-secondary">
-                        <i class="fas fa-industry"></i> Solicitar Maquila
-                    </a>
-                </div>
-                
-                <div class="hero-features">
-                    <div class="feature">
-                        <i class="fas fa-certificate"></i>
-                        <span>Calidad Certificada</span>
-                    </div>
-                    <div class="feature">
-                        <i class="fas fa-truck"></i>
-                        <span>Envíos a Todo México</span>
-                    </div>
-                    <div class="feature">
-                        <i class="fas fa-users"></i>
-                        <span>+200 Distribuidores</span>
+            <div class="hero-grid">
+                <div class="hero-content">
+                    <h1 class="hero-title">Limpieza con <span class="highlight">Poder Industrial</span></h1>
+                    <p class="hero-subtitle">Fabricamos soluciones químicas de alta eficiencia para cada sector. Calidad certificada desde nuestra planta en Jalisco hasta tu negocio.</p>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                        <a href="/catalogo/index.php" class="btn btn-primary"><i class="fas fa-shopping-cart"></i> Ver Catálogo</a>
+                        <a href="#contacto" class="btn btn-secondary"><i class="fas fa-industry"></i> Solicitar Maquila</a>
                     </div>
                 </div>
-            </div>
-            
-            <div class="hero-image">
-                <div class="product-display">
-                    <div class="product-item" style="background-color: #f0f8ff;">
-                        <i class="fas fa-home"></i>
-                        <h4>Hogar</h4>
-                    </div>
-                    <div class="product-item" style="background-color: #fff0f5;">
-                        <i class="fas fa-industry"></i>
-                        <h4>Industrial</h4>
-                    </div>
-                    <div class="product-item" style="background-color: #f0fff0;">
-                        <i class="fas fa-car"></i>
-                        <h4>Automotriz</h4>
+
+                <div class="hero-image">
+                    <div class="product-display">
+                        <a href="/catalogo/index.php?categoria=hogar" class="product-item">
+                            <i class="fas fa-home" style="color: #3b82f6;"></i>
+                            <div>
+                                <h4>Línea Hogar</h4>
+                                <p style="font-size: 0.85rem; color: #64748b;">Eficiencia en cada rincón.</p>
+                            </div>
+                            <i class="fas fa-arrow-right" style="font-size: 1rem; margin-left: auto; opacity: 0.3;"></i>
+                        </a>
+                        <a href="/catalogo/index.php?categoria=industrial" class="product-item">
+                            <i class="fas fa-industry" style="color: #ef4444;"></i>
+                            <div>
+                                <h4>Industrial y PYMES</h4>
+                                <p style="font-size: 0.85rem; color: #64748b;">Poder de limpieza profesional.</p>
+                            </div>
+                            <i class="fas fa-arrow-right" style="font-size: 1rem; margin-left: auto; opacity: 0.3;"></i>
+                        </a>
+                        <a href="/catalogo/index.php?categoria=automotriz" class="product-item">
+                            <i class="fas fa-car" style="color: #10b981;"></i>
+                            <div>
+                                <h4>Línea Automotriz</h4>
+                                <p style="font-size: 0.85rem; color: #64748b;">Brillo y protección total.</p>
+                            </div>
+                            <i class="fas fa-arrow-right" style="font-size: 1rem; margin-left: auto; opacity: 0.3;"></i>
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Sección Categorías -->
     <section class="categories" id="productos">
         <div class="container">
             <div class="section-header">
                 <h2>Nuestras <span class="highlight">Categorías</span></h2>
-                <p>Productos especializados para cada sector</p>
+                <p>Haz clic en el botón para filtrar nuestro catálogo directamente</p>
             </div>
-            
             <div class="categories-grid">
                 <div class="category-card">
-                    <div class="category-icon home">
-                        <i class="fas fa-home"></i>
-                    </div>
-                    <h3>Limpieza del Hogar</h3>
+                    <i class="fas fa-home category-icon"></i>
+                    <h3>Hogar</h3>
                     <ul class="category-products">
                         <li><i class="fas fa-check"></i> Cloro y Blanqueadores</li>
-                        <li><i class="fas fa-check"></i> Lava Trastes y Loza</li>
                         <li><i class="fas fa-check"></i> Desinfectantes Multiusos</li>
-                        <li><i class="fas fa-check"></i> Limpiadores de Pisos</li>
-                        <li><i class="fas fa-check"></i> Aromatizantes</li>
+                        <li><i class="fas fa-check"></i> Aromatizantes Premium</li>
                     </ul>
-                    <a href="#" class="btn-category">Ver 15 Productos</a>
+                    <a href="/catalogo/index.php?categoria=hogar" class="btn btn-primary" style="width: 100%; justify-content: center;">Ver 15 Productos</a>
                 </div>
-                
                 <div class="category-card">
-                    <div class="category-icon industry">
-                        <i class="fas fa-industry"></i>
-                    </div>
-                    <h3>Industrial y PYMES</h3>
+                    <i class="fas fa-industry category-icon"></i>
+                    <h3>Industrial</h3>
                     <ul class="category-products">
-                        <li><i class="fas fa-check"></i> Desengrasantes Industriales</li>
+                        <li><i class="fas fa-check"></i> Desengrasantes Pesados</li>
+                        <li><i class="fas fa-check"></i> Sanitizantes Grado Alimenticio</li>
                         <li><i class="fas fa-check"></i> Limpiadores de Maquinaria</li>
-                        <li><i class="fas fa-check"></i> Desincrustantes</li>
-                        <li><i class="fas fa-check"></i> Sanitizantes Profesionales</li>
-                        <li><i class="fas fa-check"></i> Productos Concentrados</li>
                     </ul>
-                    <a href="#" class="btn-category">Ver 22 Productos</a>
+                    <a href="/catalogo/index.php?categoria=industrial" class="btn btn-primary" style="width: 100%; justify-content: center;">Ver 22 Productos</a>
                 </div>
-                
                 <div class="category-card">
-                    <div class="category-icon automotive">
-                        <i class="fas fa-car"></i>
-                    </div>
-                    <h3>Automotriz y Detallado</h3>
+                    <i class="fas fa-car category-icon"></i>
+                    <h3>Automotriz</h3>
                     <ul class="category-products">
                         <li><i class="fas fa-check"></i> Armor-All y Protectores</li>
-                        <li><i class="fas fa-check"></i> Pulimentos y Ceras</li>
-                        <li><i class="fas fa-check"></i> Limpiadores de Interiores</li>
-                        <li><i class="fas fa-check"></i> Desengrasantes de Motor</li>
-                        <li><i class="fas fa-check"></i> Shampoo para Autos</li>
+                        <li><i class="fas fa-check"></i> Shampoo con Cera</li>
+                        <li><i class="fas fa-check"></i> Desengrasante de Motores</li>
                     </ul>
-                    <a href="#" class="btn-category">Ver 18 Productos</a>
+                    <a href="/catalogo/index.php?categoria=automotriz" class="btn btn-primary" style="width: 100%; justify-content: center;">Ver 18 Productos</a>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Sección Servicios -->
-    <section class="services" id="servicios">
+    <section class="services" id="servicios" style="background: #f8fafc;">
         <div class="container">
             <div class="section-header">
-                <h2>Nuestros <span class="highlight">Servicios</span></h2>
-                <p>Múltiples formas de hacer negocios con nosotros</p>
+                <h2>Servicios <span class="highlight">Empresariales</span></h2>
             </div>
-            
             <div class="services-grid">
                 <div class="service-card">
                     <div class="service-number">01</div>
                     <h3>Venta Directa</h3>
-                    <p>Compra nuestros productos directamente en presentaciones estándar.</p>
-                    <div class="service-details">
-                        <p><i class="fas fa-check"></i> Precios al público</p>
-                        <p><i class="fas fa-check"></i> Envíos nacionales</p>
-                        <p><i class="fas fa-check"></i> Garantía de calidad</p>
-                    </div>
+                    <p>Envíos nacionales con garantía de calidad AHD Clean.</p>
                 </div>
-                
                 <div class="service-card">
                     <div class="service-number">02</div>
-                    <h3>Venta por Mayoreo</h3>
-                    <p>Precios especiales para compras volúmen, mínimo 10 piezas por producto.</p>
-                    <div class="service-details">
-                        <p><i class="fas fa-check"></i> Descuentos del 15-40%</p>
-                        <p><i class="fas fa-check"></i> Pedidos mínimos flexibles</p>
-                        <p><i class="fas fa-check"></i> Logística dedicada</p>
-                    </div>
+                    <h3>Mayoreo</h3>
+                    <p>Descuentos escalonables del 15% al 40% según volumen.</p>
                 </div>
-                
                 <div class="service-card">
                     <div class="service-number">03</div>
                     <h3>Distribuidores</h3>
-                    <p>Conviértete en distribuidor oficial y obtén los mejores precios del mercado.</p>
-                    <div class="service-details">
-                        <p><i class="fas fa-check"></i> Precios exclusivos</p>
-                        <p><i class="fas fa-check"></i> Material de marketing</p>
-                        <p><i class="fas fa-check"></i> Soporte técnico</p>
-                    </div>
+                    <p>Soporte técnico y precios exclusivos de fábrica.</p>
                 </div>
-                
-                <div class="service-card">
-                    <div class="service-number">04</div>
-                    <h3>Maquila (Marca Blanca)</h3>
-                    <p>Fabricamos tus productos con tu propia marca y empaque personalizado.</p>
-                    <div class="service-details">
-                        <p><i class="fas fa-check"></i> Fórmulas personalizadas</p>
-                        <p><i class="fas fa-check"></i> Diseño de empaque</p>
-                        <p><i class="fas fa-check"></i> Mínimo 50 litros por producto</p>
-                    </div>
+                <div class="service-card" style="background: var(--primary); color: white;">
+                    <div class="service-number" style="color: white;">04</div>
+                    <h3>Maquila</h3>
+                    <p>Creamos tu propia marca blanca. Fórmulas personalizadas desde 50 litros.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Sección Distribuidores -->
-    <section class="distributors" id="distribuidores">
-        <div class="container">
-            <div class="distributors-content">
-                <h2>¿Eres <span class="highlight">Distribuidor</span> o Negocio Grande?</h2>
-                <p>Obtén precios exclusivos, catálogos personalizados y soporte directo de fábrica.</p>
-                
-                <div class="distributor-benefits">
-                    <div class="benefit">
-                        <i class="fas fa-percentage"></i>
-                        <h4>Hasta 50% de descuento</h4>
-                        <p>Precios especiales para distribuidores</p>
-                    </div>
-                    <div class="benefit">
-                        <i class="fas fa-boxes"></i>
-                        <h4>Inventario Garantizado</h4>
-                        <p>Reservamos stock para tus pedidos</p>
-                    </div>
-                    <div class="benefit">
-                        <i class="fas fa-headset"></i>
-                        <h4>Soporte Prioritario</h4>
-                        <p>Atención directa con gerente de cuenta</p>
-                    </div>
-                </div>
-                
-                <a href="#contacto" class="btn btn-primary btn-large">
-                    <i class="fas fa-file-contract"></i> Solicitar Información para Distribuidores
-                </a>
-            </div>
-        </div>
-    </section>
-
-    <!-- Sección Sobre Nosotros -->
-    <section class="about" id="nosotros">
-        <div class="container">
-            <div class="about-content">
-                <h2>Fabricantes con <span class="highlight">Experiencia</span></h2>
-                <p>Con más de 10 años en la industria química, hemos desarrollado fórmulas efectivas y seguras para cada necesidad de limpieza.</p>
-                
-                <div class="about-stats">
-                    <div class="stat">
-                        <span class="stat-number">50+</span>
-                        <span class="stat-label">Productos Diferentes</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">200+</span>
-                        <span class="stat-label">Clientes Satisfechos</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">10,000+</span>
-                        <span class="stat-label">Litros Mensuales</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">100%</span>
-                        <span class="stat-label">Calidad Certificada</span>
-                    </div>
-                </div>
-                
-                <div class="about-features">
-                    <div class="feature-item">
-                        <i class="fas fa-flask"></i>
-                        <h4>Laboratorio Propio</h4>
-                        <p>Control de calidad en cada lote</p>
-                    </div>
-                    <div class="feature-item">
-                        <i class="fas fa-leaf"></i>
-                        <h4>Ecológicos</h4>
-                        <p>Fórmulas biodegradables</p>
-                    </div>
-                    <div class="feature-item">
-                        <i class="fas fa-shield-alt"></i>
-                        <h4>Seguros</h4>
-                        <p>Cumplimos normas NOM y OSHA</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Sección Contacto -->
     <section class="contact" id="contacto">
         <div class="container">
-            <div class="section-header">
-                <h2>Contáctanos</h2>
-                <p>Estamos listos para atender tus necesidades de limpieza</p>
-            </div>
-            
             <div class="contact-grid">
                 <div class="contact-info">
-                    <h3>Información de Contacto</h3>
-                    
-                    <div class="contact-item">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <div>
-                            <h4>Dirección de Fábrica</h4>
-                            <p>Av. Hacienda Santa Cruz 315<br>Tlajomulco de Zuñiga, Jalisco C.P. 45655</p>
-                        </div>
-                    </div>
-                    
-                    <div class="contact-item">
-                        <i class="fas fa-phone"></i>
-                        <div>
-                            <h4>Teléfonos</h4>
-                            <p>Ventas: 3335518435 <br>Distribuidores: 3328988987</p>
-                        </div>
-                    </div>
-                    
-                    <div class="contact-item">
-                        <i class="fas fa-envelope"></i>
-                        <div>
-                            <h4>Correos Electrónicos</h4>
-                            <p>Ventas: ventas@ahd-clean.com</p>
-                        </div>
-                    </div>
-                    
-                    <div class="contact-item">
-                        <i class="fas fa-clock"></i>
-                        <div>
-                            <h4>Horarios de Atención</h4>
-                            <p>Lunes a Viernes: 8:00 AM - 6:00 PM<br>Sábados: 9:00 AM - 2:00 PM</p>
-                        </div>
+                    <h2 style="font-family: 'Montserrat'; margin-bottom: 20px;">Hablemos de <span class="highlight">Negocios</span></h2>
+                    <p style="margin-bottom: 30px;">Av. Hacienda Santa Cruz 315, Tlajomulco de Zuñiga, Jalisco.</p>
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        <p><i class="fas fa-phone highlight"></i> Ventas: 3335518435</p>
+                        <p><i class="fas fa-envelope highlight"></i> ventas@ahd-clean.com</p>
+                        <p><i class="fas fa-clock highlight"></i> Lun - Vie: 8:00 AM - 6:00 PM</p>
                     </div>
                 </div>
                 
-                <div class="contact-form">
-                    <h3>Envíanos un Mensaje</h3>
-                    
+                <div class="contact-form" style="background: white; padding: 40px; border-radius: 20px; box-shadow: var(--shadow);">
                     <form id="contactForm">
                         <div class="form-group">
-                            <label for="name">Nombre Completo *</label>
-                            <input type="text" id="name" name="name" required>
+                            <label>Nombre Completo *</label>
+                            <input type="text" name="name" required>
                         </div>
-                        
                         <div class="form-group">
-                            <label for="email">Correo Electrónico *</label>
-                            <input type="email" id="email" name="email" required>
+                            <label>Correo Electrónico *</label>
+                            <input type="email" name="email" required>
                         </div>
-                        
                         <div class="form-group">
-                            <label for="phone">Teléfono</label>
-                            <input type="tel" id="phone" name="phone">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="interest">Me interesa *</label>
-                            <select id="interest" name="interest" required>
+                            <label>Me interesa *</label>
+                            <select name="interest" required>
                                 <option value="">Selecciona una opción</option>
                                 <option value="venta">Compra de Productos</option>
                                 <option value="mayoreo">Venta por Mayoreo</option>
                                 <option value="distribuidor">Ser Distribuidor</option>
                                 <option value="maquila">Maquila/Marca Blanca</option>
-                                <option value="otro">Otro</option>
                             </select>
                         </div>
-                        
                         <div class="form-group">
-                            <label for="message">Mensaje *</label>
-                            <textarea id="message" name="message" rows="5" required></textarea>
+                            <label>Mensaje *</label>
+                            <textarea name="message" rows="4" required></textarea>
                         </div>
-                        
-                        <button type="submit" id="submitBtn" class="btn btn-primary">
+                        <button type="submit" id="submitBtn" class="btn btn-primary" style="width: 100%; justify-content: center;">
                             <i class="fas fa-paper-plane"></i> <span id="btnText">Enviar Mensaje</span>
                         </button>
-
-                        <div id="formResponse" style="margin-top: 15px; display: none;"></div>
+                        <div id="formResponse" style="margin-top: 15px; display: none; text-align: center; font-weight: bold;"></div>
                     </form>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-col">
                     <div class="logo">
-                        <div class="logo-icon">
-                            <i class="fas fa-flask"></i>
-                        </div>
-                        <div class="logo-text">
-                            <span class="logo-main">AHD Clean</span>
-                            <span class="logo-sub">Soluciones Químicas Profesionales</span>
-                        </div>
+                        <img src="css/Logo_AHD_Clean.png" width="40" style="filter: brightness(0) invert(1);">
+                        <span style="font-family: 'Montserrat'; font-weight: 800; font-size: 1.4rem;">AHD Clean</span>
                     </div>
-                    <p class="footer-description">
-                        Fabricantes de productos químicos de limpieza para hogar, industria y automotriz. Calidad, confianza y resultados.
-                    </p>
+                    <p style="margin-top: 20px; color: #94a3b8;">Fabricantes expertos en soluciones químicas de alta eficiencia para México.</p>
                 </div>
-                
                 <div class="footer-col">
-                    <h4>Enlaces Rápidos</h4>
+                    <h4>Navegación</h4>
                     <ul class="footer-links">
                         <li><a href="#inicio">Inicio</a></li>
-                        <li><a href="#productos">Productos</a></li>
-                        <li><a href="#servicios">Servicios</a></li>
-                        <li><a href="#nosotros">Nosotros</a></li>
+                        <li><a href="/catalogo/index.php">Catálogo</a></li>
                         <li><a href="#contacto">Contacto</a></li>
-                        <li><a href="tienda.html">Tienda Online</a></li>
-                        <li><a href="/catalogo/" class="btn">VER PRODUCTOS</a></li>
                     </ul>
                 </div>
-                
                 <div class="footer-col">
-                    <h4>Categorías</h4>
+                    <h4>Soporte</h4>
                     <ul class="footer-links">
-                        <li><a href="#">Limpieza del Hogar</a></li>
-                        <li><a href="#">Industrial y PYMES</a></li>
-                        <li><a href="#">Automotriz</a></li>
-                        <li><a href="#">Desengrasantes</a></li>
-                        <li><a href="#">Desinfectantes</a></li>
-                        <li><a href="#">Pulimentos y Ceras</a></li>
+                        <li><a href="/admin_panel/login.php">Panel Socios</a></li>
+                        <li><a href="#">Privacidad</a></li>
+                        <li><a href="#">Términos</a></li>
                     </ul>
                 </div>
-                
                 <div class="footer-col">
-                    <h4>Contacto</h4>
-                    <div class="footer-contact">
-                        <p><i class="fas fa-map-marker-alt"></i> Av. Hacienda Santa Cruz 315</p>
-                        <p><i class="fas fa-phone"></i> 3335518435 </p>
-                        <p><i class="fas fa-envelope"></i> ventas@ahd-clean.com</p>
-                    </div>
-                    
-                    <div class="footer-social">
-                        <a href="#"><i class="fab fa-facebook"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-linkedin"></i></a>
-                        <a href="#"><i class="fab fa-whatsapp"></i></a>
+                    <h4>Social</h4>
+                    <div style="display: flex; gap: 15px; font-size: 1.5rem;">
+                        <a href="#" style="color: white;"><i class="fab fa-facebook"></i></a>
+                        <a href="#" style="color: white;"><i class="fab fa-instagram"></i></a>
+                        <a href="https://wa.me/523335518435" style="color: white;"><i class="fab fa-whatsapp"></i></a>
                     </div>
                 </div>
             </div>
-            
-            <div class="footer-bottom">
-                <p>&copy; 2026 AHD Clean. Todos los derechos reservados.</p>
-                <div class="footer-legal">
-                    <a href="#">Términos y Condiciones</a>
-                    <a href="#">Política de Privacidad</a>
-                </div>
+            <div style="border-top: 1px solid #334155; padding-top: 20px; text-align: center; color: #64748b; font-size: 0.9rem;">
+                &copy; 2026 AHD Clean. Fabricado con precisión química.
             </div>
         </div>
     </footer>
 
-    <!-- Botón WhatsApp -->
-    <a href="https://wa.me/523335518435" class="whatsapp-button" target="_blank">
-        <i class="fab fa-whatsapp"></i>
-    </a>
+    <a href="https://wa.me/523335518435" class="whatsapp-button" target="_blank"><i class="fab fa-whatsapp"></i></a>
 
-    <!-- Scripts -->
-    <script src="js/main.js"></script>
-    <script src="js/contact-form.js"></script>
     <script>
-                document.getElementById('contactForm').addEventListener('submit', function(e) {
-            e.preventDefault(); // Evita que la página se recargue
+        // Menu Toggle funcional
+        document.getElementById('menuToggle').addEventListener('click', function() {
+            document.getElementById('navMenu').classList.toggle('active');
+        });
 
+        // Lógica de Formulario (Mantenida de tu código)
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault();
             const form = this;
             const btn = document.getElementById('submitBtn');
             const btnText = document.getElementById('btnText');
             const responseDiv = document.getElementById('formResponse');
 
-            // Estado de "Enviando..."
             btn.disabled = true;
             btnText.innerText = 'Enviando...';
             responseDiv.style.display = 'none';
 
-            // Creamos los datos para enviar
-            const formData = new FormData(form);
-
-            // Enviamos al PHP
             fetch('enviar.php', {
                 method: 'POST',
-                body: formData
+                body: new FormData(form)
             })
             .then(response => response.text())
             .then(data => {
                 responseDiv.style.display = 'block';
                 if (data.includes("éxito")) {
-                    responseDiv.innerHTML = '<p style="color: green;">✅ ¡Mensaje enviado correctamente!</p>';
-                    form.reset(); // Limpia el formulario
+                    responseDiv.innerHTML = '<p style="color: #22c55e;">✅ ¡Mensaje enviado con éxito!</p>';
+                    form.reset();
                 } else {
-                    responseDiv.innerHTML = '<p style="color: red;">❌ Error: ' + data + '</p>';
+                    responseDiv.innerHTML = '<p style="color: #ef4444;">❌ Error al enviar mensaje.</p>';
                 }
             })
-            .catch(error => {
+            .catch(() => {
                 responseDiv.style.display = 'block';
-                responseDiv.innerHTML = '<p style="color: red;">❌ Hubo un problema con la conexión.</p>';
+                responseDiv.innerHTML = '<p style="color: #ef4444;">❌ Error de conexión.</p>';
             })
             .finally(() => {
-                // Restaurar el botón
                 btn.disabled = false;
                 btnText.innerText = 'Enviar Mensaje';
             });
