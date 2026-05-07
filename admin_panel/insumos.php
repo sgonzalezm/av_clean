@@ -5,7 +5,7 @@ verificarSesion();
 
 // --- PROCESAMIENTO DE DATOS ---
 
-// 1. Eliminar Múltiplo (NUEVO)
+// 1. Eliminar Múltiplo
 if (isset($_GET['eliminar_pres'])) {
     $id_pres = $_GET['eliminar_pres'];
     $sql = "DELETE FROM insumo_presentaciones WHERE id = ?";
@@ -13,9 +13,9 @@ if (isset($_GET['eliminar_pres'])) {
     header("Location: insumos.php"); exit();
 }
 
-// 2. Editar Múltiplo Individual (CORREGIDO ID)
+// 2. Editar Múltiplo Individual
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['editar_presentacion_unica'])) {
-    $id_pres = $_POST['id']; // Usar el ID de la fila de la tabla presentaciones
+    $id_pres = $_POST['id']; 
     $capacidad = $_POST['capacidad_edit'];
     $precio = $_POST['precio_edit'];
 
@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['editar_insumo_completo
     header("Location: insumos.php"); exit();
 }
 
-// 4. Procesar actualización de precio base (Existente)
+// 4. Procesar actualización de precio base
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_precio'])) {
     $id_insumo = $_POST['id_insumo_edit'];
     $nuevo_precio = $_POST['nuevo_precio'];
@@ -44,14 +44,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_precio'])) {
     header("Location: insumos.php"); exit();
 }
 
-// 5. Procesar nuevo insumo (Existente)
+// 5. Procesar nuevo insumo (RESTAURADO)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['nuevo_insumo'])) {
+    $nombre = $_POST['nombre'];
+    $unidad = $_POST['unidad'];
+    $precio = $_POST['precio'];
+    $id_prov = !empty($_POST['id_proveedor']) ? $_POST['id_proveedor'] : null;
+
     $pdo->prepare("INSERT INTO insumos (nombre, unidad_medida, precio_unitario, id_proveedor) VALUES (?, ?, ?, ?)")
-        ->execute([$_POST['nombre'], $_POST['unidad'], $_POST['precio'], $_POST['id_proveedor']]);
+        ->execute([$nombre, $unidad, $precio, $id_prov]);
     header("Location: insumos.php"); exit();
 }
 
-// 6. Procesar agregar múltiplo (Existente/Mejorado)
+// 6. Procesar agregar múltiplo
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_presentacion'])) {
     $pdo->prepare("INSERT INTO insumo_presentaciones (id_insumo, cantidad_capacidad, precio_presentacion) VALUES (?, ?, ?)")
         ->execute([$_POST['id_insumo_pres'], $_POST['capacidad'], $_POST['precio_pres']]);
@@ -59,7 +64,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_presentacion'])) {
 }
 
 // --- CONSULTA ---
-// IMPORTANTE: Se cambió id_insumo por id_presentacion en el GROUP_CONCAT para poder identificar cada fila
 $query_insumos = "
     SELECT i.*, p.nombre_empresa,
     (SELECT GROUP_CONCAT(CONCAT(id, ':', cantidad_capacidad, ':', precio_presentacion) SEPARATOR '||') 
@@ -70,6 +74,7 @@ $query_insumos = "
 $insumos = $pdo->query($query_insumos)->fetchAll();
 $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores ORDER BY nombre_empresa ASC")->fetchAll();
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -148,6 +153,39 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         </table>
     </div>
 
+    <div id="modalInsumo" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-plus-circle"></i> Nuevo Insumo</h3>
+            <form method="POST">
+                <input type="hidden" name="nuevo_insumo" value="1">
+                <label>Nombre:</label>
+                <input type="text" name="nombre" class="form-control" required placeholder="Nombre de la materia prima">
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label>Unidad:</label>
+                        <input type="text" name="unidad" class="form-control" required placeholder="Kg, L, Pz">
+                    </div>
+                    <div>
+                        <label>Precio Unitario:</label>
+                        <input type="number" name="precio" step="0.0001" class="form-control" required placeholder="0.00">
+                    </div>
+                </div>
+
+                <label>Proveedor:</label>
+                <select name="id_proveedor" class="form-control">
+                    <option value="">Sin proveedor</option>
+                    <?php foreach ($proveedores as $p): ?>
+                        <option value="<?php echo $p['id_proveedor']; ?>"><?php echo htmlspecialchars($p['nombre_empresa']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+
+                <button type="submit" class="btn-save">Guardar Materia Prima</button>
+                <button type="button" onclick="document.getElementById('modalInsumo').style.display='none'" style="width:100%; margin-top:10px; background:none; border:none; color:#94a3b8; cursor:pointer;">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
     <div id="modalEditarFull" class="modal">
         <div class="modal-content">
             <h3 style="margin-bottom:10px;"><i class="fas fa-pen"></i> Editar Insumo</h3>
@@ -206,8 +244,6 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         </div>
     </div>
 
-    <div id="modalInsumo" class="modal"><div class="modal-content">... (Tu formulario de nuevo insumo) ...</div></div>
-    
     <div id="modalPres" class="modal">
         <div class="modal-content">
             <h3 id="pres_nombre_insumo">Agregar Múltiplo</h3>
@@ -230,6 +266,7 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
             <form method="POST">
                 <input type="hidden" name="update_precio" value="1">
                 <input type="hidden" name="id_insumo_edit" id="id_insumo_edit">
+                <label>Nuevo Precio Base:</label>
                 <input type="number" name="nuevo_precio" id="nuevo_precio_input" step="0.0001" class="form-control" required>
                 <button type="submit" class="btn-save" style="background:#3b82f6;">Actualizar</button>
             </form>
@@ -293,7 +330,6 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
             }
         }
 
-        // ... funciones de búsqueda y modal precio se mantienen igual ...
         function abrirModalPrecio(id, nombre, precioActual) {
             document.getElementById('id_insumo_edit').value = id;
             document.getElementById('edit_nombre_insumo').innerText = "Editar precio: " + nombre;

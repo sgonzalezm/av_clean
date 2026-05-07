@@ -12,20 +12,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     $id_formula = !empty($_POST['id_formula_maestra']) ? $_POST['id_formula_maestra'] : null;
     $vol_val = $_POST['volumen_valor'] ?? 1;
     $vol_uni = $_POST['volumen_unidad'] ?? 'L';
+    // NUEVOS CAMPOS VINCULADOS A INSUMOS
+    $id_envase = !empty($_POST['id_insumo_envase']) ? $_POST['id_insumo_envase'] : null;
+    $id_etiqueta = !empty($_POST['id_insumo_etiqueta']) ? $_POST['id_insumo_etiqueta'] : null;
 
     try {
         if ($_POST['action'] == 'nuevo') {
             $pdo->beginTransaction();
-            $sql = "INSERT INTO productos (nombre, precio, categoria, id_formula_maestra, volumen_valor, volumen_unidad) VALUES (?, ?, ?, ?, ?, ?)";
-            $pdo->prepare($sql)->execute([$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni]);
+            $sql = "INSERT INTO productos (nombre, precio, categoria, id_formula_maestra, volumen_valor, volumen_unidad, id_insumo_envase, id_insumo_etiqueta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $pdo->prepare($sql)->execute([$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni, $id_envase, $id_etiqueta]);
             $nuevo_id = $pdo->lastInsertId();
             $pdo->prepare("INSERT INTO inventario (producto_id, stock) VALUES (?, 0)")->execute([$nuevo_id]);
             $pdo->commit();
             header("Location: catalogo_productos.php?msj=Creado"); exit;
         } 
         elseif ($_POST['action'] == 'editar') {
-            $sql = "UPDATE productos SET nombre=?, precio=?, categoria=?, id_formula_maestra=?, volumen_valor=?, volumen_unidad=? WHERE id=?";
-            $pdo->prepare($sql)->execute([$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni, $id]);
+            $sql = "UPDATE productos SET nombre=?, precio=?, categoria=?, id_formula_maestra=?, volumen_valor=?, volumen_unidad=?, id_insumo_envase=?, id_insumo_etiqueta=? WHERE id=?";
+            $pdo->prepare($sql)->execute([$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni, $id_envase, $id_etiqueta, $id]);
             header("Location: catalogo_productos.php?msj=Actualizado"); exit;
         } 
         elseif ($_POST['action'] == 'eliminar' && $id > 0) {
@@ -41,11 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     }
 }
 
-// --- 2. CONSULTA DE DATOS ---
+// --- 2. CONSULTA DE DATOS OPTIMIZADA ---
 $query = "SELECT p.*, f.nombre_formula,
           (SELECT p2.precio FROM productos p2 WHERE p2.id_formula_maestra = p.id_formula_maestra AND p2.volumen_valor = 1 LIMIT 1) as precio_ref_1l,
-          (SELECT SUM(fr.cantidad_por_litro * i.precio_unitario) FROM formulas fr JOIN insumos i ON fr.insumo_id = i.id WHERE fr.id_formula_maestra = p.id_formula_maestra) as costo_l_base,
-          (SELECT SUM(fr.cantidad_por_litro * COALESCE((SELECT MIN(ip.precio_presentacion / ip.cantidad_capacidad) FROM insumo_presentaciones ip WHERE ip.id_insumo = fr.insumo_id), i.precio_unitario)) FROM formulas fr JOIN insumos i ON fr.insumo_id = i.id WHERE fr.id_formula_maestra = p.id_formula_maestra) as costo_l_masivo
+          (SELECT precio_unitario FROM insumos WHERE id = p.id_insumo_envase) as costo_envase_unit,
+          (SELECT precio_unitario FROM insumos WHERE id = p.id_insumo_etiqueta) as costo_etiqueta_unit,
+          (SELECT SUM(fr.cantidad_por_litro * COALESCE((SELECT MIN(ip.precio_presentacion / ip.cantidad_capacidad) FROM insumo_presentaciones ip WHERE ip.id_insumo = fr.insumo_id), i.precio_unitario)) 
+           FROM formulas fr JOIN insumos i ON fr.insumo_id = i.id WHERE fr.id_formula_maestra = p.id_formula_maestra) as costo_l_masivo
           FROM productos p
           LEFT JOIN formulas_maestras f ON p.id_formula_maestra = f.id 
           ORDER BY p.categoria ASC, p.nombre ASC";
@@ -53,19 +58,22 @@ $query = "SELECT p.*, f.nombre_formula,
 $productos = $pdo->query($query)->fetchAll();
 $categorias = $pdo->query("SELECT nombre FROM categorias ORDER BY nombre ASC")->fetchAll();
 $formulas_list = $pdo->query("SELECT id, nombre_formula FROM formulas_maestras ORDER BY nombre_formula ASC")->fetchAll();
+$insumos_empaque = $pdo->query("SELECT id, nombre, precio_unitario FROM insumos ORDER BY nombre ASC")->fetchAll();
 
-// --- 3. EXPORTACIÓN EXCEL (FIX PARA IPHONE - CSV UTF-8) ---
+// --- 3. EXPORTACIÓN EXCEL ---
 if (isset($_GET['export']) && $_GET['export'] == 'excel') {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=Catalogo_AHD_Clean.csv');
     $output = fopen('php://output', 'w');
     fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF)); 
-    fputcsv($output, ['Categoría', 'Producto', 'Volumen', 'Costo Masivo', 'Precio Venta', 'Utilidad', 'Margen %']);
+    fputcsv($output, ['Categoría', 'Producto', 'Volumen', 'Costo Total', 'Precio Venta', 'Utilidad', 'Margen %']);
     foreach ($productos as $p) {
-        $c_masivo = ($p['costo_l_masivo'] ?? 0) * $p['volumen_valor'];
-        $util = $p['precio'] - $c_masivo;
+        $c_liq = ($p['costo_l_masivo'] ?? 0) * $p['volumen_valor'];
+        $c_emp = ($p['costo_envase_unit'] ?? 0) + ($p['costo_etiqueta_unit'] ?? 0);
+        $total_c = $c_liq + $c_emp;
+        $util = $p['precio'] - $total_c;
         $margen = ($p['precio'] > 0) ? ($util / $p['precio']) * 100 : 0;
-        fputcsv($output, [$p['categoria'], $p['nombre'], $p['volumen_valor'] . $p['volumen_unidad'], number_format($c_masivo, 2), number_format($p['precio'], 2), number_format($util, 2), number_format($margen, 1) . '%']);
+        fputcsv($output, [$p['categoria'], $p['nombre'], $p['volumen_valor'] . $p['volumen_unidad'], number_format($total_c, 2), number_format($p['precio'], 2), number_format($util, 2), number_format($margen, 1) . '%']);
     }
     fclose($output); exit;
 }
@@ -83,24 +91,20 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
         :root { --accent: #3b82f6; --dark: #1e293b; --success: #059669; }
         body { background: #f8fafc; margin: 0; font-family: 'Segoe UI', sans-serif; }
 
-        /* Estilos UI e Interfaz */
         .header-mobile { display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--dark); color: white; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
         .main { padding: 25px; transition: 0.3s; }
         .badge-vol { background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
         
-        /* Rentabilidad Tags */
         .rent-tag { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; min-width: 50px; display: inline-block; text-align: center; }
         .rent-alta { color: #059669; background: #ecfdf5; border: 1px solid #bbf7d0; } 
         .rent-media { color: #d97706; background: #fffbeb; border: 1px solid #fef3c7; } 
         .rent-baja { color: #dc2626; background: #fef2f2; border: 1px solid #fee2e2; } 
 
-        /* Tabla Escritorio */
         .desktop-table { background: white; border-radius: 15px; overflow: hidden; border: 1px solid #e2e8f0; }
         .desktop-table table { width: 100%; border-collapse: collapse; }
         .desktop-table th { background: #f8fafc; padding: 12px; text-align: left; color: #64748b; font-size: 0.8rem; text-transform: uppercase; }
         .desktop-table td { padding: 12px; border-top: 1px solid #f1f5f9; }
 
-        /* Vista Mobile */
         .mobile-cards { display: none; flex-direction: column; gap: 12px; }
         .prod-card { background: white; padding: 20px; border-radius: 15px; border: 1px solid #e2e8f0; }
         .prod-card h3 { margin: 0; font-size: 1.1rem; color: var(--dark); }
@@ -115,7 +119,6 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
             .hide-mobile { display: none !important; }
         }
 
-        /* --- OPTIMIZACIÓN PDF (PRINT) --- */
         @media print {
             @page { size: letter; margin: 1cm; }
             .sidebar, .header-mobile, .no-print, .acciones-cell, .hide-mobile, .btn, .search-container, #overlay { display: none !important; }
@@ -129,9 +132,8 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
         }
         .print-header { display: none; }
 
-        /* Modales */
         .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:4000; align-items:center; justify-content:center; backdrop-filter: blur(4px); }
-        .modal-content { background:white; padding:25px; border-radius:20px; width:90%; max-width:500px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-content { background:white; padding:25px; border-radius:20px; width:90%; max-width:500px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; }
         .form-input { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 10px; box-sizing: border-box; font-size: 1rem; margin-top:5px; }
     </style>
 </head>
@@ -175,7 +177,7 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th class="no-print">Costo (M)</th>
+                        <th class="no-print">Costo (Total)</th>
                         <th>Precio Venta</th>
                         <th class="no-print">Utilidad</th>
                         <th class="no-print" style="text-align:center;">Margen</th>
@@ -184,8 +186,10 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
                 </thead>
                 <tbody>
                     <?php foreach ($productos as $p): 
-                        $c_masivo = ($p['costo_l_masivo'] ?? 0) * $p['volumen_valor'];
-                        $util_m = $p['precio'] - $c_masivo;
+                        $c_liq = ($p['costo_l_masivo'] ?? 0) * $p['volumen_valor'];
+                        $c_emp = ($p['costo_envase_unit'] ?? 0) + ($p['costo_etiqueta_unit'] ?? 0);
+                        $total_costo = $c_liq + $c_emp;
+                        $util_m = $p['precio'] - $total_costo;
                         $marg_m = ($p['precio'] > 0) ? ($util_m / $p['precio']) * 100 : 0;
                         $clase_r = ($marg_m >= 45) ? 'rent-alta' : (($marg_m >= 25) ? 'rent-media' : 'rent-baja');
                     ?>
@@ -195,7 +199,10 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
                             <span class="badge-vol"><?php echo (float)$p['volumen_valor'].$p['volumen_unidad']; ?></span><br>
                             <small class="no-print" style="color:#94a3b8;"><?php echo htmlspecialchars($p['categoria']); ?></small>
                         </td>
-                        <td class="no-print" style="color:#64748b;">$<?php echo number_format($c_masivo, 2); ?></td>
+                        <td class="no-print" style="color:#64748b;">
+                            $<?php echo number_format($total_costo, 2); ?>
+                            <div style="font-size:0.6rem; color:#cbd5e0;">(L:$<?php echo number_format($c_liq,2);?> + E:$<?php echo number_format($c_emp,2);?>)</div>
+                        </td>
                         <td style="color:var(--accent); font-weight:bold;">$<?php echo number_format($p['precio'], 2); ?></td>
                         <td class="no-print" style="color:var(--success); font-weight:bold;">$<?php echo number_format($util_m, 2); ?></td>
                         <td class="no-print" style="text-align:center;"><span class="rent-tag <?php echo $clase_r; ?>"><?php echo number_format($marg_m, 1); ?>%</span></td>
@@ -211,8 +218,10 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
 
         <div class="mobile-cards no-print">
             <?php foreach ($productos as $p): 
-                 $c_masivo = ($p['costo_l_masivo'] ?? 0) * $p['volumen_valor'];
-                 $util_m = $p['precio'] - $c_masivo;
+                 $c_liq = ($p['costo_l_masivo'] ?? 0) * $p['volumen_valor'];
+                 $c_emp = ($p['costo_envase_unit'] ?? 0) + ($p['costo_etiqueta_unit'] ?? 0);
+                 $total_costo = $c_liq + $c_emp;
+                 $util_m = $p['precio'] - $total_costo;
                  $marg_m = ($p['precio'] > 0) ? ($util_m / $p['precio']) * 100 : 0;
                  $clase_r = ($marg_m >= 45) ? 'rent-alta' : (($marg_m >= 25) ? 'rent-media' : 'rent-baja');
             ?>
@@ -256,6 +265,28 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
                     <div><label style="font-weight:bold; font-size:0.8rem;">Unidad</label><select name="volumen_unidad" id="m_vol_uni" class="form-input"><option value="L">Litros (L)</option><option value="ml">Mililitros (ml)</option></select></div>
                 </div>
 
+                <div style="background:#f8fafc; padding:12px; border-radius:12px; margin-bottom:12px; border:1px solid #e2e8f0;">
+                    <p style="margin:0 0 10px 0; font-size:0.75rem; font-weight:bold; color:#64748b; text-transform:uppercase;">Configuración de Empaque</p>
+                    <div style="margin-bottom:8px;">
+                        <label style="font-size:0.8rem;">Insumo Envase</label>
+                        <select name="id_insumo_envase" id="m_envase" class="form-input">
+                            <option value="">-- Sin Envase --</option>
+                            <?php foreach($insumos_empaque as $i): ?>
+                                <option value="<?php echo $i['id']; ?>"><?php echo htmlspecialchars($i['nombre']); ?> ($<?php echo $i['precio_unitario']; ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;">Insumo Etiqueta</label>
+                        <select name="id_insumo_etiqueta" id="m_etiqueta" class="form-input">
+                            <option value="">-- Sin Etiqueta --</option>
+                            <?php foreach($insumos_empaque as $i): ?>
+                                <option value="<?php echo $i['id']; ?>"><?php echo htmlspecialchars($i['nombre']); ?> ($<?php echo $i['precio_unitario']; ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
                 <div style="background:#f0f9ff; padding:12px; border-radius:12px; margin-bottom:12px; border:1px solid #bae6fd;">
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                         <div><label style="color:#0369a1; font-weight:bold; font-size:0.8rem;">Desc. %</label><input type="number" id="m_desc" class="form-input" oninput="recalc()" placeholder="Opcional" inputmode="decimal"></div>
@@ -290,6 +321,8 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
             document.getElementById('m_vol_val').value = '1';
             document.getElementById('m_desc').value = '';
             document.getElementById('precio_ref_1l').value = '0';
+            document.getElementById('m_envase').value = '';
+            document.getElementById('m_etiqueta').value = '';
             document.getElementById('modalProd').style.display = 'flex';
         }
 
@@ -303,6 +336,9 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
             document.getElementById('m_vol_uni').value = p.volumen_unidad;
             document.getElementById('m_cat').value = p.categoria; 
             document.getElementById('m_form').value = p.id_formula_maestra || "";
+            document.getElementById('m_envase').value = p.id_insumo_envase || "";
+            document.getElementById('m_etiqueta').value = p.id_insumo_etiqueta || "";
+            
             const ref = parseFloat(p.precio_ref_1l) || 0; 
             document.getElementById('precio_ref_1l').value = ref;
             const teorico = ref * parseFloat(p.volumen_valor);
