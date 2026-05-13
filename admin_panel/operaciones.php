@@ -215,6 +215,15 @@ $bajo_stock = $pdo->query("SELECT COUNT(*) FROM insumos WHERE stock_actual < 5")
                 </div>
             </a>
 
+            <a href="gestion_muestras.php" class="card-link">
+                <div class="card clickable">
+                    <i class="fas fa-vial fa-2x" style="color: #72260c;"></i>
+                    <h3>Gestión de Muestras</h3>
+                    <p>Registro y seguimiento de muestras gratuitas.</p>
+                    <span class="btn-editar-mini">Administrar <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+
 
         </div> </div> <script src="../js/admin.js"></script>
     <script>
