@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../includes/conexion.php';
+// 1. IMPORTAR EL HELPER DE CORREOS AUTOMÁTICOS
+require_once '../includes/email_helper.php';
 
 // Verificamos que vengan datos del formulario POST y que el carrito no esté vacío
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
@@ -12,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
     // Capturamos si viene de un cliente logueado
     $cliente_id = $_SESSION['cliente_id'] ?? null;
     $tipo_usuario = $_SESSION['tipo_cliente'] ?? 0;
+    $nombre_cliente = $_SESSION['cliente_nombre'] ?? 'Cliente AHD Clean';
 
     try {
         $pdo->beginTransaction();
@@ -23,11 +26,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
         }
 
         // 2. INSERTAR EL PEDIDO MAESTRO
-        $stmt = $pdo->prepare("INSERT INTO pedidos (fecha_pedido, total, status, email, telefono, domicilio) VALUES (NOW(), 0, 'Pendiente', ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO pedidos (fecha_pedido, total, status_logistica, email, telefono, domicilio) VALUES (NOW(), 0, 'Pendiente', ?, ?, ?)");
         $stmt->execute([$email, $telefono, $domicilio]);
         $id_pedido = $pdo->lastInsertId();
 
         $total_bruto = 0;
+        
+        // --- NUEVO: Array para capturar los productos y meterlos en la tabla HTML del correo ---
+        $productos_comprados = [];
 
         // 3. PROCESAR DETALLES E INVENTARIO POR FÓRMULA
         foreach ($_SESSION['carrito'] as $id_producto => $cantidad) {
@@ -43,6 +49,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
                 // A. Insertar el detalle del pedido
                 $stmt_det = $pdo->prepare("INSERT INTO detalle_pedido (pedido_id, producto_id, producto_nombre, cantidad, precio_unitario) VALUES (?, ?, ?, ?, ?)");
                 $stmt_det->execute([$id_pedido, $id_producto, $prod['nombre'], $cantidad, $prod['precio']]);
+
+                // --- NUEVO: Guardamos el renglón formateado para la vista del correo ---
+                $productos_comprados[] = [
+                    'nombre' => $prod['nombre'],
+                    'cantidad' => $cantidad,
+                    'subtotal' => $subtotal
+                ];
 
                 // B. DESCUENTO DE INVENTARIO POR FÓRMULA (Granel)
                 // Solo si el producto tiene una fórmula asociada
@@ -66,7 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
                 case 3: $porcentaje_descuento = 0.20; break;
             }
         }
-        $total_con_descuento = $total_bruto - ($total_bruto * $porcentaje_descuento);
+        $monto_descuento = $total_bruto * $porcentaje_descuento;
+        $total_con_descuento = $total_bruto - $monto_descuento;
 
         // 5. ACTUALIZAR TOTAL FINAL DEL PEDIDO
         $stmt_upd = $pdo->prepare("UPDATE pedidos SET total = ? WHERE id = ?");
@@ -77,6 +91,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_SESSION['carrito'])) {
         
         // Vaciamos el carrito de la sesión
         unset($_SESSION['carrito']); 
+
+        // ---------------------------------------------------------------------
+        // --- NUEVO: PREPARACIÓN Y DISPARO DEL CORREO SMTP CON PHPMAILER ---
+        // ---------------------------------------------------------------------
+        $detallesVenta = [
+            'pedido_id'   => $id_pedido,
+            'total'       => $total_con_descuento,
+            'metodo_pago' => 'Ficha de Pago Generada (Pendiente)',
+            'productos'   => $productos_comprados,
+            'subtotal'    => $total_bruto,
+            'descuento'   => $monto_descuento
+        ];
+
+        // Enviamos el correo (pasamos $email capturado del formulario)
+        enviarCorreoNotificacionVenta($email, $nombre_cliente, $detallesVenta, false);
+        // ---------------------------------------------------------------------
 
         // Redirigimos con confirmación
         header("Location: ver_carrito.php?orden_ok=$id_pedido");

@@ -161,6 +161,16 @@ $bajo_stock = $pdo->query("SELECT COUNT(*) FROM insumos WHERE stock_actual < 5")
                 </div>
             </a>
 
+            <a href="cotizador.php" class="card-link">
+                <div class="card clickable">
+                    <i class="fas fa-calculator fa-2x" style="color: #768fa3;"></i>
+                    <h3>Cotizador</h3>
+                    <p>Generar cotizaciones para clientes y proveedores.</p>
+                    <span class="btn-editar-mini">Crear Cotización <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+
+
             <a href="historial_ordenes.php" class="card-link">
                 <div class="card clickable">
                     <i class="fas fa-industry fa-2x" style="color: #48bb78;"></i>

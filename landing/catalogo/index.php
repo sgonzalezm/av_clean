@@ -67,8 +67,8 @@ try {
         .product-card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: 0.3s; }
         .product-card:hover { transform: translateY(-5px); }
         
-        .img-placeholder { width: 100%; height: 200px; background: #eee; border-radius: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .img-placeholder img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .img-placeholder { width: 100%; height: 200px; background: #eee; border-radius: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden !important; }
+        .img-placeholder img { max-width: 100%; max-height: 100%; object-fit: cover !important; object-position: center !important; }
 
         .price-tag { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
         .btn-add { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
