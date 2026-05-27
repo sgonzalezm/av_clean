@@ -99,6 +99,11 @@ $clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje
         /* Contenedor Principal */
         .pos-container { display: grid; grid-template-columns: 1fr 380px; gap: 20px; padding: 20px; }
 
+        /* Estilo para la lista de productos seleccionados */
+        .resumen-carrito { max-height: 300px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; }
+        .item-lista { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; color: #334155; }
+
+        .btn-ver-resumen { display: none; background: #3b82f6; color: white; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; cursor: pointer; }
         /* Responsive Mobile */
         @media (max-width: 992px) {
             .header-mobile { display: flex; }
@@ -114,6 +119,8 @@ $clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje
             }
             .mobile-config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
             .hide-mobile { display: none !important; }
+
+            .btn-ver-resumen { display: block; }
         }
 
         .product-row { display: flex; align-items: center; background: white; padding: 12px; border-radius: 12px; margin-bottom: 8px; border: 1px solid #e2e8f0; }
@@ -211,6 +218,14 @@ $clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje
                         </select>
                     </div>
 
+                    <div class="btn-ver-resumen" onclick="mostrarResumen()">🛒 Ver productos agregados</div>
+
+                    <div id="contenedor-resumen" class="hide-mobile">
+                        <div class="resumen-carrito" id="lista-carrito">
+                            <p style="padding:10px; color:#94a3b8; text-align:center;">No hay productos agregados</p>
+                        </div>
+                    </div>
+
                     <div class="desglose-ticket">
                         <div class="desglose-item"><span>Subtotal:</span> <span id="sub_view">$0.00</span></div>
                         <div class="desglose-item" style="color:#4fd1c5;"><span>Total Ahorro:</span> <span id="ahorro_view">-$0.00</span></div>
@@ -274,6 +289,45 @@ $clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje
                 window.location.href = 'nueva_venta.php';
             });
         <?php endif; ?>
+
+
+        // Función para actualizar la lista visual
+        function actualizarResumen() {
+            const contenedor = document.getElementById('lista-carrito');
+            contenedor.innerHTML = ''; // Limpiar
+            let hayProductos = false;
+
+            document.querySelectorAll('.product-row').forEach(row => {
+                const input = row.querySelector('.input-cantidad');
+                const cantidad = parseInt(input.value) || 0;
+                if (cantidad > 0) {
+                    hayProductos = true;
+                    const nombre = row.querySelector('strong').innerText;
+                    const precio = row.querySelector('.precio-unitario').value;
+                    contenedor.innerHTML += `
+                        <div class="item-lista">
+                            <span>${cantidad}x ${nombre}</span>
+                            <span>$${(cantidad * precio).toFixed(2)}</span>
+                        </div>`;
+                }
+            });
+
+            if (!hayProductos) {
+                contenedor.innerHTML = '<p style="padding:10px; color:#94a3b8; text-align:center;">No hay productos agregados</p>';
+            }
+        }
+
+        // Función para abrir el modal/sección en móvil
+        function mostrarResumen() {
+            const el = document.getElementById('contenedor-resumen');
+            el.classList.toggle('hide-mobile');
+        }
+
+        // Escuchar cambios para actualizar el resumen automáticamente
+        inputs.forEach(i => i.addEventListener('input', () => {
+            calcular();
+            actualizarResumen();
+        }));
     </script>
 </body>
 </html>

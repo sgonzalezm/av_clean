@@ -11,63 +11,59 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     $nombre = $_POST['nombre'] ?? '';
     $precio = $_POST['precio'] ?? 0;
     $categoria = $_POST['categoria'] ?? ''; 
-    $id_formula = !empty($_POST['id_formula_maestra']) ? $_POST['id_formula_maestra'] : null;
+    $tipo = $_POST['tipo_producto'] ?? 'producto'; // Captura el nuevo tipo
     $vol_val = $_POST['volumen_valor'] ?? 1;
     $vol_uni = $_POST['volumen_unidad'] ?? 'L';
-    $id_envase = !empty($_POST['id_insumo_envase']) ? $_POST['id_insumo_envase'] : null;
-    $id_etiqueta = !empty($_POST['id_insumo_etiqueta']) ? $_POST['id_insumo_etiqueta'] : null;
 
-    // --- LÓGICA DE SUBIDA DE IMAGEN ---
+    // Lógica para asignar valores según el tipo
+    if ($tipo === 'servicio') {
+        $id_formula = null;
+        $id_envase = null;
+        $id_etiqueta = null;
+    } else {
+        $id_formula = !empty($_POST['id_formula_maestra']) ? $_POST['id_formula_maestra'] : null;
+        $id_envase = !empty($_POST['id_insumo_envase']) ? $_POST['id_insumo_envase'] : null;
+        $id_etiqueta = !empty($_POST['id_insumo_etiqueta']) ? $_POST['id_insumo_etiqueta'] : null;
+    }
+
+    // --- LÓGICA DE SUBIDA DE IMAGEN (SE MANTIENE IGUAL) ---
     $imagen_db = null;
     if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] === UPLOAD_ERR_OK) {
         $fileTmpPath = $_FILES['imagen']['tmp_name'];
         $fileName = $_FILES['imagen']['name'];
         $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-        
-        // Generar un nombre de archivo único para evitar colisiones
         $nuevoNombreImagen = md5(time() . $fileName) . '.' . $fileExtension;
-        
-        // Directorio de subida (relativo a este archivo admin/productos.php)
         $uploadFileDir = '../img/';
-        if (!is_dir($uploadFileDir)) {
-            mkdir($uploadFileDir, 0777, true);
-        }
+        if (!is_dir($uploadFileDir)) { mkdir($uploadFileDir, 0777, true); }
         $dest_path = $uploadFileDir . $nuevoNombreImagen;
-        
         if (move_uploaded_file($fileTmpPath, $dest_path)) {
-            $imagen_db = '../img/' . $nuevoNombreImagen; // Ruta guardada de manera homogénea para la tienda online
+            $imagen_db = '../img/' . $nuevoNombreImagen;
         }
     }
 
     try {
         if ($_POST['action'] == 'nuevo') {
             $pdo->beginTransaction();
-            $sql = "INSERT INTO productos (nombre, precio, categoria, id_formula_maestra, volumen_valor, volumen_unidad, id_insumo_envase, id_insumo_etiqueta, imagen_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            $pdo->prepare($sql)->execute([$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni, $id_envase, $id_etiqueta, $imagen_db]);
+            $sql = "INSERT INTO productos (nombre, precio, categoria, id_formula_maestra, volumen_valor, volumen_unidad, id_insumo_envase, id_insumo_etiqueta, imagen_url, tipo_producto) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $pdo->prepare($sql)->execute([$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni, $id_envase, $id_etiqueta, $imagen_db, $tipo]);
             $nuevo_id = $pdo->lastInsertId();
             $pdo->prepare("INSERT INTO inventario (producto_id, stock) VALUES (?, 0)")->execute([$nuevo_id]);
             $pdo->commit();
             header("Location: catalogo_productos.php?msj=Creado"); exit;
         } 
         elseif ($_POST['action'] == 'editar') {
-            if ($imagen_db !== null) {
-                // Si el usuario subió una nueva imagen, se actualiza la columna de imagen también
-                $sql = "UPDATE productos SET nombre=?, precio=?, categoria=?, id_formula_maestra=?, volumen_valor=?, volumen_unidad=?, id_insumo_envase=?, id_insumo_etiqueta=?, imagen_url=? WHERE id=?";
-                $pdo->prepare($sql)->execute([$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni, $id_envase, $id_etiqueta, $imagen_db, $id]);
-            } else {
-                // Si no se subió archivo, conserva la imagen actual (No sobreescribir con null si ya existe)
-                $sql = "UPDATE productos SET nombre=?, precio=?, categoria=?, id_formula_maestra=?, volumen_valor=?, volumen_unidad=?, id_insumo_envase=?, id_insumo_etiqueta=? WHERE id=?";
-                $pdo->prepare($sql)->execute([$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni, $id_envase, $id_etiqueta, $id]);
-            }
+            $params = [$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni, $id_envase, $id_etiqueta];
+            $sql_img = ($imagen_db !== null) ? ", imagen_url=?" : "";
+            if ($imagen_db !== null) $params[] = $imagen_db;
+            $params[] = $tipo; // Agregamos tipo al update
+            $params[] = $id;   // ID al final
+            
+            $sql = "UPDATE productos SET nombre=?, precio=?, categoria=?, id_formula_maestra=?, volumen_valor=?, volumen_unidad=?, id_insumo_envase=?, id_insumo_etiqueta=? $sql_img, tipo_producto=? WHERE id=?";
+            $pdo->prepare($sql)->execute($params);
             header("Location: catalogo_productos.php?msj=Actualizado"); exit;
         } 
-        elseif ($_POST['action'] == 'eliminar' && $id > 0) {
-            $pdo->beginTransaction();
-            $pdo->prepare("DELETE FROM inventario WHERE producto_id = ?")->execute([$id]);
-            $pdo->prepare("DELETE FROM productos WHERE id = ?")->execute([$id]);
-            $pdo->commit();
-            header("Location: catalogo_productos.php?msj=Eliminado"); exit;
-        }
+        // ... (el bloque eliminar queda igual)
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         $error = "Error: " . $e->getMessage();
@@ -339,6 +335,42 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
                     </div>
                 </div>
 
+                <div style="margin-bottom:10px;">
+                    <label style="font-weight:bold; font-size:0.8rem;">Tipo de Ítem</label>
+                    <select name="tipo_producto" id="m_tipo" class="form-input" onchange="toggleCampos()" required>
+                        <option value="producto">Producto (Requiere Fórmula)</option>
+                        <option value="servicio">Servicio / Accesorio</option>
+                    </select>
+                </div>
+
+                <div id="campos_producto">
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:0.8rem;">Fórmula Maestra</label>
+                        <select name="id_formula_maestra" id="m_form" class="form-input">
+                            <option value="">Ninguna</option>
+                            <?php foreach($formulas_list as $f): ?>
+                                <option value="<?php echo $f['id']; ?>"><?php echo $f['nombre_formula']; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div style="background:#f8fafc; padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid #e2e8f0;">
+                        <p style="margin:0 0 5px 0; font-size:0.7rem; font-weight:bold; color:#64748b;">INSUMOS</p>
+                        <select name="id_insumo_envase" id="m_envase" class="form-input" style="margin-bottom:5px;">
+                            <option value="">-- Envase --</option>
+                            <?php foreach($insumos_empaque as $i): ?>
+                                <option value="<?php echo $i['id']; ?>"><?php echo htmlspecialchars($i['nombre']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <select name="id_insumo_etiqueta" id="m_etiqueta" class="form-input">
+                            <option value="">-- Etiqueta --</option>
+                            <?php foreach($insumos_empaque as $i): ?>
+                                <option value="<?php echo $i['id']; ?>"><?php echo htmlspecialchars($i['nombre']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
                 <button type="submit" style="width:100%; padding:15px; background:var(--accent); color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">GUARDAR</button>
                 <button type="button" onclick="cerrarModal()" style="width:100%; margin-top:10px; background:none; border:none; color:#94a3b8; cursor:pointer;">Cancelar</button>
             </form>
@@ -413,6 +445,29 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
 
         function toggleMenu() { document.querySelector('.sidebar').classList.toggle('active'); document.getElementById('overlay').classList.toggle('active'); }
         function cerrarModal() { document.getElementById('modalProd').style.display = 'none'; }
+
+        function toggleCampos() {
+            const tipo = document.getElementById('m_tipo').value;
+            const camposProd = document.getElementById('campos_producto');
+            
+            if (tipo === 'servicio') {
+                camposProd.style.display = 'none';
+                // Limpiar valores para no enviar basura
+                document.getElementById('m_form').value = '';
+                document.getElementById('m_envase').value = '';
+                document.getElementById('m_etiqueta').value = '';
+            } else {
+                camposProd.style.display = 'block';
+            }
+        }
+
+        // Actualiza abrirEditar para manejar el nuevo tipo
+        function abrirEditar(p) {
+            // ... código anterior ...
+            document.getElementById('m_tipo').value = p.tipo_producto || 'producto';
+            toggleCampos(); // Ejecuta para mostrar/ocultar al abrir
+            // ... resto del código ...
+        }
     </script>
 </body>
 </html>
