@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $id_etiqueta = !empty($_POST['id_insumo_etiqueta']) ? $_POST['id_insumo_etiqueta'] : null;
     }
 
-    // --- LÓGICA DE SUBIDA DE IMAGEN (SE MANTIENE IGUAL) ---
+    // --- LÓGICA DE SUBIDA DE IMAGEN ---
     $imagen_db = null;
     if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] === UPLOAD_ERR_OK) {
         $fileTmpPath = $_FILES['imagen']['tmp_name'];
@@ -56,14 +56,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             $params = [$nombre, $precio, $categoria, $id_formula, $vol_val, $vol_uni, $id_envase, $id_etiqueta];
             $sql_img = ($imagen_db !== null) ? ", imagen_url=?" : "";
             if ($imagen_db !== null) $params[] = $imagen_db;
-            $params[] = $tipo; // Agregamos tipo al update
-            $params[] = $id;   // ID al final
+            $params[] = $tipo; 
+            $params[] = $id;   
             
             $sql = "UPDATE productos SET nombre=?, precio=?, categoria=?, id_formula_maestra=?, volumen_valor=?, volumen_unidad=?, id_insumo_envase=?, id_insumo_etiqueta=? $sql_img, tipo_producto=? WHERE id=?";
             $pdo->prepare($sql)->execute($params);
             header("Location: catalogo_productos.php?msj=Actualizado"); exit;
         } 
-        // ... (el bloque eliminar queda igual)
+        elseif ($_POST['action'] == 'eliminar' && $id > 0) {
+            $pdo->beginTransaction();
+            $pdo->prepare("DELETE FROM inventario WHERE producto_id = ?")->execute([$id]);
+            $pdo->prepare("DELETE FROM productos WHERE id = ?")->execute([$id]);
+            $pdo->commit();
+            header("Location: catalogo_productos.php?msj=Eliminado"); exit;
+        }
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         $error = "Error: " . $e->getMessage();
@@ -84,12 +90,11 @@ $query = "SELECT p.*, f.nombre_formula,
 $productos_raw = $pdo->query($query)->fetchAll();
 
 // --- LOGICA DE DETECCION DE COLUMNAS / PRESENTACIONES PRESENTES ---
-$columnas_presentaciones = []; // Almacenará valores únicos detectados en la BD de forma ordenada (Ej: 0.5, 1, 4, 5, 10, 20)
+$columnas_presentaciones = []; 
 
 // --- LÓGICA DE AGRUPACIÓN ---
 $productos_agrupados = [];
 foreach ($productos_raw as $p) {
-    // Limpiamos los sufijos del nombre para agruparlos bajo el mismo elemento base
     $nombre_base = trim(preg_replace('/\s*\([\d\.]+m?L\)$/i', '', $p['nombre']));
     $key = $p['categoria'] . "_" . $nombre_base;
     
@@ -97,16 +102,13 @@ foreach ($productos_raw as $p) {
         $productos_agrupados[$key] = ['nombre_base' => $nombre_base, 'categoria' => $p['categoria'], 'presentaciones' => []];
     }
     
-    // Homologar key de volumen a litros (float)
     $vol_key = ($p['volumen_unidad'] == 'ml') ? ($p['volumen_valor'] / 1000) : (float)$p['volumen_valor'];
     $productos_agrupados[$key]['presentaciones'][(string)$vol_key] = $p;
     
-    // Registramos la presentación si no ha sido guardada para armar los headers dinámicos
     if (!in_array((string)$vol_key, $columnas_presentaciones)) {
         $columnas_presentaciones[] = (string)$vol_key;
     }
 }
-// Ordenamos las columnas de menor a mayor capacidad
 sort($columnas_presentaciones, SORT_NUMERIC);
 
 $categorias = $pdo->query("SELECT nombre FROM categorias ORDER BY nombre ASC")->fetchAll();
@@ -301,29 +303,9 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
                     <div><label style="font-size:0.8rem;">Unidad</label><select name="volumen_unidad" id="m_vol_uni" class="form-input"><option value="L">L</option><option value="ml">ml</option></select></div>
                 </div>
 
-                <div style="background:#f8fafc; padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid #e2e8f0;">
-                    <p style="margin:0 0 5px 0; font-size:0.7rem; font-weight:bold; color:#64748b;">INSUMOS</p>
-                    <select name="id_insumo_envase" id="m_envase" class="form-input" style="margin-bottom:5px;">
-                        <option value="">-- Envase --</option>
-                        <?php foreach($insumos_empaque as $i): ?><option value="<?php echo $i['id']; ?>"><?php echo htmlspecialchars($i['nombre']); ?></option><?php endforeach; ?>
-                    </select>
-                    <select name="id_insumo_etiqueta" id="m_etiqueta" class="form-input">
-                        <option value="">-- Etiqueta --</option>
-                        <?php foreach($insumos_empaque as $i): ?><option value="<?php echo $i['id']; ?>"><?php echo htmlspecialchars($i['nombre']); ?></option><?php endforeach; ?>
-                    </select>
-                </div>
-
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#f0f9ff; padding:10px; border-radius:10px; margin-bottom:10px;">
                     <div><label style="font-size:0.8rem;">Desc %</label><input type="number" id="m_desc" class="form-input" oninput="recalc()"></div>
                     <div><label style="font-size:0.8rem; font-weight:bold;">Precio $</label><input type="number" step="0.01" name="precio" id="m_precio" class="form-input" required style="color:var(--accent); font-weight:bold;"></div>
-                </div>
-
-                <div style="margin-bottom:10px;">
-                    <label style="font-size:0.8rem;">Fórmula</label>
-                    <select name="id_formula_maestra" id="m_form" class="form-input">
-                        <option value="">Ninguna</option>
-                        <?php foreach($formulas_list as $f): ?><option value="<?php echo $f['id']; ?>"><?php echo $f['nombre_formula']; ?></option><?php endforeach; ?>
-                    </select>
                 </div>
 
                 <div style="margin-bottom:15px; background:#fbfbfb; padding:10px; border:1px dashed #cbd5e0; border-radius:10px;">
@@ -400,6 +382,8 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
             document.getElementById('precio_ref_1l').value = '0';
             document.getElementById('m_desc').value = '';
             document.getElementById('m_imagen').value = '';
+            document.getElementById('m_tipo').value = 'producto';
+            toggleCampos();
             document.getElementById('preview_contenedor').style.display = 'none';
             document.getElementById('img_preview').src = '';
             document.getElementById('modal_titulo').innerText = 'Nuevo Producto';
@@ -421,7 +405,9 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
             document.getElementById('m_desc').value = '';
             document.getElementById('m_imagen').value = '';
             
-            // Renderizado dinámico de la previsualización de imagen guardada en BD
+            document.getElementById('m_tipo').value = p.tipo_producto || 'producto';
+            toggleCampos();
+            
             const prevContenedor = document.getElementById('preview_contenedor');
             const imgPreview = document.getElementById('img_preview');
             if (p.imagen_url && p.imagen_url.trim() !== '') {
@@ -452,21 +438,12 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
             
             if (tipo === 'servicio') {
                 camposProd.style.display = 'none';
-                // Limpiar valores para no enviar basura
                 document.getElementById('m_form').value = '';
                 document.getElementById('m_envase').value = '';
                 document.getElementById('m_etiqueta').value = '';
             } else {
                 camposProd.style.display = 'block';
             }
-        }
-
-        // Actualiza abrirEditar para manejar el nuevo tipo
-        function abrirEditar(p) {
-            // ... código anterior ...
-            document.getElementById('m_tipo').value = p.tipo_producto || 'producto';
-            toggleCampos(); // Ejecuta para mostrar/ocultar al abrir
-            // ... resto del código ...
         }
     </script>
 </body>

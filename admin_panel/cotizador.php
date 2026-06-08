@@ -10,7 +10,6 @@ if (isset($_GET['ajax_get_cotizacion'])) {
     $coti_data->execute([$id_req]);
     $encabezado = $coti_data->fetch(PDO::FETCH_ASSOC);
 
-    // SOLUCIÓN AMBIGÜEDAD: Traemos d.* y p.nombre, p.precio mapeado de forma explícita mediante LEFT JOIN
     $detalles_data = $pdo->prepare("SELECT d.*, p.nombre AS producto_nombre, p.precio AS precio_producto FROM detalle_cotizacion d LEFT JOIN productos p ON d.producto_id = p.id WHERE d.cotizacion_id = ?");
     $detalles_data->execute([$id_req]);
     $detalles = $detalles_data->fetchAll(PDO::FETCH_ASSOC);
@@ -51,14 +50,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 throw new Exception("Debes agregar al menos un producto a la cotización.");
             }
 
-            // Calcular Totales
+            // Consultar el descuento real del cliente desde la BD para validación del Servidor
+            $stmt_desc = $pdo->prepare("SELECT tc.descuento_porcentaje FROM clientes cl INNER JOIN tipos_cliente tc ON cl.tipo_cliente_id = tc.id WHERE cl.id = ?");
+            $stmt_desc->execute([$cliente_id]);
+            $pct_descuento = floatval($stmt_desc->fetchColumn() ?? 0);
+
+            // Calcular Totales con Descuento Aplicado
             $subtotal_general = 0;
             foreach ($productos as $index => $prod_id) {
                 $cant = floatval($cantidades[$index]);
-                $prec = floatval($precios[$index]);
-                $subtotal_general += ($cant * $prec);
+                $prec_original = floatval($precios[$index]);
+                $subtotal_general += ($cant * $prec_original);
             }
-            $total_general = $subtotal_general;
+            
+            // Deducción del descuento asignado al perfil del cliente
+            $descuento_total = $subtotal_general * ($pct_descuento / 100);
+            $total_general = $subtotal_general - $descuento_total;
 
             if ($_POST['action'] == 'nueva_cotizacion') {
                 $sql_coti = "INSERT INTO cotizaciones (cliente_id, usuario_id, fecha_vencimiento, subtotal, total, notas, estado) 
@@ -83,9 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 
             foreach ($productos as $index => $prod_id) {
                 $cant = floatval($cantidades[$index]);
-                $prec = floatval($precios[$index]);
-                $sub_linea = $cant * $prec;
-                $stmt_det->execute([$cotizacion_id, $prod_id, $cant, $prec, $sub_linea]);
+                $prec_original = floatval($precios[$index]);
+                
+                // Guardamos en el detalle el precio neto (ya con su descuento calculado individualmente)
+                $prec_neto = $prec_original * (1 - ($pct_descuento / 100));
+                $sub_linea = $cant * $prec_neto;
+                
+                $stmt_det->execute([$cotizacion_id, $prod_id, $cant, $prec_neto, $sub_linea]);
             }
 
             $pdo->commit();
@@ -95,14 +106,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         }
     }
 
-    // --- ACCIÓN: REGISTRO RÁPIDO DE CLIENTE ---
+    // --- ACCIÓN: REGISTRO RÁPIDO DE CLIENTE CORREGIDO (TELEFONO) ---
     if ($_POST['action'] == 'rapido_cliente') {
         $nombre = trim($_POST['nombre_completo']);
         $telefono = trim($_POST['telefono'] ?? '');
         if (!empty($nombre)) {
-            $stmt = $pdo->prepare("INSERT INTO clientes (nombre_completo, telephone) VALUES (?, ?)"); // Nota: Ajusta 'telephone' o 'telefono' según tu BD real
-            $stmt->execute([$nombre, $telefono]);
-            $mensaje_exito = "Cliente registrado con éxito.";
+            try {
+                $stmt = $pdo->prepare("INSERT INTO clientes (nombre_completo, telefono) VALUES (?, ?)"); 
+                $stmt->execute([$nombre, $telefono]);
+                $mensaje_exito = "Cliente registrado con éxito.";
+            } catch (PDOException $e) {
+                $error = "Error al insertar en la base de datos: " . $e->getMessage();
+            }
         } else {
             $error = "El nombre del cliente no puede estar vacío.";
         }
@@ -120,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     }
 }
 
-// Queries de la interfaz principal
+// Queries estructuradas de la interfaz
 $query_coti = "SELECT c.*, cl.nombre_completo as cliente_nombre, u.nombre as vendedor_nombre 
                FROM cotizaciones c
                INNER JOIN clientes cl ON c.cliente_id = cl.id
@@ -128,7 +143,12 @@ $query_coti = "SELECT c.*, cl.nombre_completo as cliente_nombre, u.nombre as ven
                ORDER BY c.id DESC";
 $cotizaciones = $pdo->query($query_coti)->fetchAll();
 
-$clientes = $pdo->query("SELECT id, nombre_completo FROM clientes ORDER BY nombre_completo ASC")->fetchAll();
+// Traemos a los clientes emparejados con su porcentaje de descuento asignado por tipo
+$query_clientes = "SELECT cl.id, cl.nombre_completo, COALESCE(tc.descuento_porcentaje, 0) as descuento_porcentaje 
+                   FROM clientes cl 
+                   LEFT JOIN tipos_cliente tc ON cl.tipo_cliente_id = tc.id 
+                   ORDER BY cl.nombre_completo ASC";
+$clientes = $pdo->query($query_clientes)->fetchAll();
 $productos_bd = $pdo->query("SELECT id, nombre, precio FROM productos ORDER BY nombre ASC")->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -183,8 +203,6 @@ $productos_bd = $pdo->query("SELECT id, nombre, precio FROM productos ORDER BY n
         .form-group label { display: block; margin-bottom: 6px; font-weight: bold; color: #4a5568; font-size: 0.9rem; }
         .form-control { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 0.95rem; }
         .product-row { display: grid; grid-template-columns: 3fr 1fr 1fr auto; gap: 10px; margin-bottom: 12px; align-items: center; }
-        
-        /* Estilos específicos para la tabla de visualización de artículos */
         .preview-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         .preview-table th, .preview-table td { padding: 10px; border: 1px solid #e2e8f0; text-align: left; }
         .preview-table th { background: #f8fafc; font-weight: bold; }
@@ -256,11 +274,8 @@ $productos_bd = $pdo->query("SELECT id, nombre, precio FROM productos ORDER BY n
                                 <td>
                                     <div style="display:flex; gap: 6px; align-items: center;">
                                         <button class="btn btn-view" onclick="verArticulos(<?= $c['id'] ?>)" style="padding: 6px 10px; font-size: 0.8rem;" title="Ver Productos">👁️ Ver</button>
-                                        
                                         <a href="generar_pdf_cotizacion.php?id=<?= $c['id'] ?>" target="_blank" class="btn btn-pdf" style="padding: 6px 10px; font-size: 0.8rem;" title="Exportar PDF">📄 PDF</a>
-                                        
                                         <button class="btn btn-primary" onclick="editarCotizacion(<?= $c['id'] ?>)" style="padding: 6px 10px; font-size: 0.8rem;">✏️ Editar</button>
-                                        
                                         <form method="POST" onsubmit="return confirm('¿Eliminar esta cotización?');" style="margin:0;">
                                             <input type="hidden" name="action" value="eliminar">
                                             <input type="hidden" name="id" value="<?= $c['id'] ?>">
@@ -316,12 +331,11 @@ $productos_bd = $pdo->query("SELECT id, nombre, precio FROM productos ORDER BY n
                 <tr>
                     <th>Producto / Presentación</th>
                     <th>Cantidad</th>
-                    <th>Precio Unitario</th>
+                    <th>Precio Unitario (Neto)</th>
                     <th>Subtotal</th>
                 </tr>
             </thead>
-            <tbody id="tblArticulosCuerpo">
-                </tbody>
+            <tbody id="tblArticulosCuerpo"></tbody>
         </table>
         <div style="text-align: right; margin-top: 15px; font-size: 1.1rem;">
             <b>Total General: <span id="lblVerTotal" style="color: var(--primary);">$0.00</span></b>
@@ -345,10 +359,10 @@ $productos_bd = $pdo->query("SELECT id, nombre, precio FROM productos ORDER BY n
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
                 <div class="form-group">
                     <label>Cliente Asignado</label>
-                    <select name="cliente_id" id="selCliente" class="form-control" required>
+                    <select name="cliente_id" id="selCliente" class="form-control" onchange="recalcularCotizacion()" required>
                         <option value="">-- Selecciona un cliente --</option>
                         <?php foreach($clientes as $cl): ?>
-                            <option value="<?= $cl['id'] ?>"><?= htmlspecialchars($cl['nombre_completo']) ?></option>
+                            <option value="<?= $cl['id'] ?>" data-descuento="<?= $cl['descuento_porcentaje'] ?>"><?= htmlspecialchars($cl['nombre_completo']) ?> (Desc: <?= $cl['descuento_porcentaje'] ?>%)</option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -376,8 +390,19 @@ $productos_bd = $pdo->query("SELECT id, nombre, precio FROM productos ORDER BY n
                 <textarea name="notas" id="txtNotas" class="form-control" rows="2"></textarea>
             </div>
 
-            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; text-align: right; margin-top: 15px;">
-                <h3 style="margin: 0;">Total Propuesto: <span id="txtTotalCotizacion" style="color: var(--primary);">$0.00</span></h3>
+            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 15px; text-align: right;">
+                <div>
+                    <span style="font-size: 0.9rem; color: #64748b;">Subtotal Base:</span>
+                    <h4 style="margin: 0; color: #475569;" id="lblSubtotalBase">$0.00</h4>
+                </div>
+                <div>
+                    <span style="font-size: 0.9rem; color: var(--success);">Descuento Aplicado:</span>
+                    <h4 style="margin: 0; color: var(--success);" id="lblDescuentoPresumir">-$0.00 (0%)</h4>
+                </div>
+                <div>
+                    <span style="font-size: 1rem; font-weight: bold; color: var(--dark);">Total Propuesto:</span>
+                    <h3 style="margin: 0; color: var(--primary);" id="txtTotalCotizacion">$0.00</h3>
+                </div>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px;">
@@ -419,7 +444,7 @@ function agregarFilaProducto(prodId = '', cantidad = '', precio = '') {
         <select name="productos[]" class="form-control select-producto" onchange="autoAsignarPrecio(this)" required>
             ${optionsHtml}
         </select>
-        <input type="number" name="cantidades[]" class="form-control input-cantidad" placeholder="Cant." min="0.1" step="any" value="${cantidad}" oninput="recalcularCotizacion()" required>
+        <input type="number" name="cantidades[]" class="form-control input-cantidad" placeholder="Cant." min="0.01" step="any" value="${cantidad}" oninput="recalcularCotizacion()" required>
         <input type="number" name="precios[]" class="form-control input-precio" placeholder="Precio Un." min="0.00" step="any" value="${precio}" oninput="recalcularCotizacion()" required>
         <button type="button" class="btn btn-danger" onclick="eliminarFila(this)">🗑️</button>
     `;
@@ -449,16 +474,29 @@ function eliminarFila(btn) {
 }
 
 function recalcularCotizacion() {
-    let total = 0;
+    let subtotalBase = 0;
+    
+    // Recorrer filas sumando precios de lista/originales
     document.querySelectorAll('.product-row').forEach(fila => {
         const cant = parseFloat(fila.querySelector('.input-cantidad').value) || 0;
         const prec = parseFloat(fila.querySelector('.input-precio').value) || 0;
-        total += (cant * prec);
+        subtotalBase += (cant * prec);
     });
-    document.getElementById('txtTotalCotizacion').innerText = '$' + total.toFixed(2);
+    
+    // Obtener porcentaje de descuento del cliente seleccionado
+    const selCliente = document.getElementById('selCliente');
+    const pctDescuento = (selCliente.selectedIndex > 0) ? parseFloat(selCliente.options[selCliente.selectedIndex].getAttribute('data-descuento')) : 0;
+    
+    // Desglose matemático
+    let montoDescuento = subtotalBase * (pctDescuento / 100);
+    let totalNeto = subtotalBase - montoDescuento;
+    
+    // Actualización visual del desglose
+    document.getElementById('lblSubtotalBase').innerText = '$' + subtotalBase.toFixed(2);
+    document.getElementById('lblDescuentoPresumir').innerText = '-$' + montoDescuento.toFixed(2) + ' (' + pctDescuento + '%)';
+    document.getElementById('txtTotalCotizacion').innerText = '$' + totalNeto.toFixed(2);
 }
 
-// Lógica AJAX para Editar la Cotización
 function editarCotizacion(id) {
     fetch(`cotizador.php?ajax_get_cotizacion=${id}`)
         .then(response => response.json())
@@ -475,8 +513,14 @@ function editarCotizacion(id) {
             const contenedor = document.getElementById('productosContenedor');
             contenedor.innerHTML = '';
             
+            // Obtener descuento del cliente asignado para revertir el precio neto a precio de lista en el input
+            const selCliente = document.getElementById('selCliente');
+            const pct = (selCliente.selectedIndex > 0) ? parseFloat(selCliente.options[selCliente.selectedIndex].getAttribute('data-descuento')) : 0;
+            
             data.detalles.forEach(d => {
-                agregarFilaProducto(d.producto_id, d.cantidad, d.precio_unitario);
+                // Si la cotización se guardó con descuento, devolvemos el valor original para mantener limpia la edición
+                let precioOriginal = parseFloat(d.precio_unitario) / (1 - (pct / 100));
+                agregarFilaProducto(d.producto_id, d.cantidad, precioOriginal.toFixed(2));
             });
             
             recalcularCotizacion();
@@ -487,7 +531,6 @@ function editarCotizacion(id) {
         });
 }
 
-// Nueva Función AJAX para Visualizar Artículos rápidamente (Módulo pedido por el usuario)
 function verArticulos(id) {
     fetch(`cotizador.php?ajax_get_cotizacion=${id}`)
         .then(response => response.json())
@@ -501,7 +544,7 @@ function verArticulos(id) {
             
             data.detalles.forEach(d => {
                 const fila = document.createElement('tr');
-                const nombreProd = d.producto_name ? d.producto_name : `Producto ID: ${d.producto_id}`;
+                const nombreProd = d.producto_nombre ? d.producto_nombre : `Producto ID: ${d.producto_id}`;
                 const cant = parseFloat(d.cantidad);
                 const precio = parseFloat(d.precio_unitario);
                 const sub = parseFloat(d.subtotal);

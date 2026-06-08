@@ -38,7 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['cliente_id'])) {
 
         if(isset($_POST['productos'])) {
             foreach ($_POST['productos'] as $item) {
-                $cant_vta = intval($item['cantidad']);
+                // CAMBIO CLAVE: Usamos floatval en lugar de intval para aceptar decimales (ej. 0.700)
+                $cant_vta = floatval($item['cantidad']);
                 if ($cant_vta > 0) {
                     $p_id = $item['id'];
                     $st = $pdo->prepare("SELECT p.nombre, p.precio, f.stock_litros_disponibles as stock 
@@ -124,7 +125,7 @@ $clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje
         }
 
         .product-row { display: flex; align-items: center; background: white; padding: 12px; border-radius: 12px; margin-bottom: 8px; border: 1px solid #e2e8f0; }
-        .qty-input-pos { width: 60px; height: 38px; text-align: center; border: 2px solid #cbd5e1; border-radius: 8px; font-weight: 800; }
+        .qty-input-pos { width: 65px; height: 38px; text-align: center; border: 2px solid #cbd5e1; border-radius: 8px; font-weight: 800; }
         
         /* Estilo del Panel de Cobro */
         .ticket-panel { background: #1e293b; color: white; padding: 20px; border-radius: 15px; }
@@ -175,13 +176,13 @@ $clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje
                         <div class="product-row" data-nombre="<?php echo strtolower($p['nombre']); ?>">
                             <div style="flex:1;">
                                 <strong style="font-size:0.9rem; display:block;"><?php echo htmlspecialchars($p['nombre']); ?></strong>
-                                <span style="font-size:0.7rem; color:#64748b;">Stock: <?php echo number_format($p['stock'], 1); ?>L</span>
+                                <span style="font-size:0.7rem; color:#64748b;">Stock: <?php echo number_format($p['stock'], 3); ?>L</span>
                             </div>
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <span style="font-weight:bold; color:var(--accent); font-size:0.85rem;">$<?php echo number_format($p['precio'], 2); ?></span>
                                 <input type="hidden" name="productos[<?php echo $i; ?>][id]" value="<?php echo $p['id']; ?>">
                                 <input type="hidden" class="precio-unitario" value="<?php echo $p['precio']; ?>">
-                                <input type="number" name="productos[<?php echo $i; ?>][cantidad]" class="qty-input-pos input-cantidad" placeholder="0" inputmode="numeric">
+                                <input type="number" name="productos[<?php echo $i; ?>][cantidad]" class="qty-input-pos input-cantidad" placeholder="0" step="any" inputmode="decimal">
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -259,7 +260,8 @@ $clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje
 
             document.querySelectorAll('.product-row').forEach(row => {
                 const p = parseFloat(row.querySelector('.precio-unitario').value);
-                const c = parseInt(row.querySelector('.input-cantidad').value) || 0;
+                // CAMBIO CLAVE: Usamos parseFloat en lugar de parseInt para admitir parcialidades en el cálculo en vivo
+                const c = parseFloat(row.querySelector('.input-cantidad').value) || 0;
                 sub += p * c;
             });
 
@@ -279,7 +281,6 @@ $clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje
             });
         });
 
-        inputs.forEach(i => i.addEventListener('input', calcular));
         selCli.addEventListener('change', calcular);
         inDesc.addEventListener('input', calcular);
 
@@ -299,7 +300,8 @@ $clientes = $pdo->query("SELECT c.id, c.nombre_completo, tc.descuento_porcentaje
 
             document.querySelectorAll('.product-row').forEach(row => {
                 const input = row.querySelector('.input-cantidad');
-                const cantidad = parseInt(input.value) || 0;
+                // CAMBIO CLAVE: Usamos parseFloat en lugar de parseInt para renderizar correctamente la lista flotante
+                const cantidad = parseFloat(input.value) || 0;
                 if (cantidad > 0) {
                     hayProductos = true;
                     const nombre = row.querySelector('strong').innerText;

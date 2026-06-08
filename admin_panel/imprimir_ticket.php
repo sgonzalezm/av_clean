@@ -28,8 +28,8 @@ function t($texto) {
 
 // Configuración del PDF (58mm de ancho)
 $ancho = 58;
-// Calculamos un alto aproximado base + productos
-$alto = 90 + (count($productos) * 10); 
+// Calculamos un alto aproximado base + productos + líneas de desglose adicionales
+$alto = 105 + (count($productos) * 10); 
 
 $pdf = new FPDF('P', 'mm', array($ancho, $alto));
 $pdf->SetMargins(4, 2, 4); 
@@ -37,7 +37,7 @@ $pdf->SetAutoPageBreak(true, 2);
 $pdf->AddPage();
 
 // --- DISEÑO DEL TICKET ---
-$pdf->SetFont('Arial', 'B', 12); // Cambié a Arial para mejor legibilidad en pequeño
+$pdf->SetFont('Arial', 'B', 12); 
 $pdf->Cell(50, 6, 'AHD CLEAN', 0, 1, 'C');
 
 $pdf->SetFont('Arial', '', 7);
@@ -56,29 +56,38 @@ $pdf->Ln(1);
 
 // Tabla de productos
 $pdf->SetFont('Arial', 'B', 7);
-$pdf->Cell(7, 4, 'CANT', 0, 0, 'L');
-$pdf->Cell(28, 4, 'PRODUCTO', 0, 0, 'L');
+$pdf->Cell(8, 4, 'CANT', 0, 0, 'L');
+$pdf->Cell(27, 4, 'PRODUCTO', 0, 0, 'L');
 $pdf->Cell(15, 4, 'TOTAL', 0, 1, 'R');
 $pdf->Cell(50, 0, '', 'T', 1);
 $pdf->Ln(1);
 
 $pdf->SetFont('Arial', '', 7);
+$subtotal_calculado = 0; // Variable para calcular el monto original sin descuento
+
 foreach ($productos as $p) {
     $inicio_y = $pdf->GetY();
     
+    // Formateamos cantidad con flotante para que si es 0.700L o 0.250L no se rompa la visual en el ticket
+    $cantidad_formateada = (floatval($p['cantidad']) == intval($p['cantidad'])) ? intval($p['cantidad']) : floatval($p['cantidad']);
+    
     // Cantidad
-    $pdf->Cell(7, 4, $p['cantidad'], 0, 0, 'L');
+    $pdf->Cell(8, 4, $cantidad_formateada, 0, 0, 'L');
     
     // Producto (MultiCell permite saltos de línea si el nombre es largo)
     $x_producto = $pdf->GetX();
-    $pdf->MultiCell(28, 4, t($p['producto_nombre']), 0, 'L');
-    $final_y = $pdf->GetY(); // Guardamos donde terminó el texto largo
+    $pdf->MultiCell(27, 4, t($p['producto_nombre']), 0, 'L');
+    $final_y = $pdf->GetY(); 
     
-    // Precio (Lo colocamos a la derecha, alineado con el inicio de la fila)
-    $pdf->SetXY($x_producto + 28, $inicio_y);
-    $pdf->Cell(15, 4, '$' . number_format($p['precio_unitario'] * $p['cantidad'], 0), 0, 1, 'R');
+    // Cálculo del importe de la línea
+    $total_linea = $p['precio_unitario'] * $p['cantidad'];
+    $subtotal_calculado += $total_linea;
     
-    // Forzamos el cursor a la posición más baja para que la siguiente fila no se encime
+    // Precio (Alineado con el inicio de la fila a la derecha)
+    $pdf->SetXY($x_producto + 27, $inicio_y);
+    $pdf->Cell(15, 4, '$' . number_format($total_linea, 2), 0, 1, 'R');
+    
+    // Forzamos el cursor a la posición más baja para evitar encimados
     $pdf->SetY(max($final_y, $pdf->GetY()));
     $pdf->Ln(1);
 }
@@ -87,10 +96,29 @@ $pdf->Ln(1);
 $pdf->Cell(50, 0, '', 'T', 1);
 $pdf->Ln(1);
 
-// TOTAL
+// --- SECCIÓN DE DESGLOSE DE PAGOS ORGANIZADOS ---
+$pdf->SetFont('Arial', '', 7);
+
+// 1. Mostrar Subtotal (siempre que el pedido haya tenido algún descuento real)
+$ahorro = $subtotal_calculado - $pedido['total'];
+
+if ($ahorro > 0.01) {
+    $pdf->Cell(25, 4, 'Subtotal:', 0, 0, 'L');
+    $pdf->Cell(25, 4, '$' . number_format($subtotal_calculado, 2), 0, 1, 'R');
+    
+    // 2. Mostrar línea de Descuento / Ahorro
+    $pdf->Cell(25, 4, 'Descuento / Ahorro:', 0, 0, 'L');
+    $pdf->Cell(25, 4, '-$' . number_format($ahorro, 2), 0, 1, 'R');
+    
+    $pdf->Ln(1);
+    $pdf->Cell(50, 0, '', 'T', 1);
+    $pdf->Ln(1);
+}
+
+// 3. GRAN TOTAL (Destacado)
 $pdf->SetFont('Arial', 'B', 10);
 $pdf->Cell(25, 6, 'TOTAL:', 0, 0, 'L');
-$pdf->Cell(25, 6, '$' . number_format($pedido['total'], 0), 0, 1, 'R');
+$pdf->Cell(25, 6, '$' . number_format($pedido['total'], 2), 0, 1, 'R');
 
 $pdf->Ln(4);
 $pdf->SetFont('Arial', 'I', 7);

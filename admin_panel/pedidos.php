@@ -24,6 +24,36 @@ if(isset($_POST['actualizar_pedido'])) {
     exit;
 }
 
+// NUEVO: Lógica para Eliminar Pedido con Audit Log
+if (isset($_POST['eliminar_pedido'])) {
+    $id_pedido = intval($_POST['pedido_id_eliminar']);
+    $motivo = trim($_POST['motivo_eliminacion'] ?? 'No especificado');
+    $usuario_id = $_SESSION['admin_id'] ?? 0; // Se obtiene el ID del administrador logueado
+
+    try {
+        $pdo->beginTransaction();
+
+        // A) Insertar en el log de auditoría antes de romper relaciones
+        $stmt_log = $pdo->prepare("INSERT INTO logs_auditoria (usuario_id, accion, tabla_afectada, registro_id, motivo) VALUES (?, 'DELETE', 'pedidos', ?, ?)");
+        $stmt_log->execute([$usuario_id, $id_pedido, $motivo]);
+
+        // B) Eliminar detalles del pedido primero (Integridad referencial)
+        $stmt_detalles = $pdo->prepare("DELETE FROM detalle_pedido WHERE pedido_id = ?");
+        $stmt_detalles->execute([$id_pedido]);
+
+        // C) Eliminar la cabecera del pedido
+        $stmt_pedido = $pdo->prepare("DELETE FROM pedidos WHERE id = ?");
+        $stmt_pedido->execute([$id_pedido]);
+
+        $pdo->commit();
+        header("Location: pedidos.php?estado=" . ($_GET['estado'] ?? 'Por Surtir') . "&msg=eliminado");
+        exit;
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        $error = "Error al eliminar el pedido: " . $e->getMessage();
+    }
+}
+
 // 2. Filtro de Logística por URL
 $filtro = $_GET['estado'] ?? 'Por Surtir';
 
@@ -67,6 +97,13 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .select-status { padding: 6px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.8rem; background: #fff; cursor: pointer; }
         .btn-accion-pdf { color: #ef4444; font-size: 1.1rem; transition: 0.2s; }
         .btn-accion-pdf:hover { transform: scale(1.2); }
+
+        /* NUEVO: Estilos para el modal */
+        .modal-audit { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; justify-content: center; align-items: center; }
+        .modal-content-audit { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .btn-cancelar { background: #94a3b8; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-confirmar-eliminar { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .text-area-audit { width: 100%; height: 80px; margin: 12px 0; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-family: sans-serif; resize: none; box-sizing: border-box; }
     </style>
 </head>
 <body>
@@ -84,6 +121,10 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <a href="nueva_venta.php" class="btn-export" style="background:#3b82f6; color:white; padding:10px 15px; border-radius:8px; text-decoration:none; font-size:0.9rem;"><i class="fas fa-plus"></i> Nueva Venta</a>
             </div>
         </div>
+
+        <?php if(isset($error)): ?>
+            <div style="background:#fee2e2; color:#991b1b; padding:12px; border-radius:8px; margin-bottom:15px; font-weight:600;"><?php echo $error; ?></div>
+        <?php endif; ?>
 
         <div class="tabs">
             <?php 
@@ -140,6 +181,10 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <a href="imprimir_ticket.php?id=<?php echo $p['id']; ?>" target="_blank" title="Ticket POS" style="color:#64748b;"><i class="fas fa-receipt"></i></a>
                                 <a href="generar_pdf_pedido.php?id=<?php echo $p['id']; ?>" target="_blank" title="Imprimir PDF Carta" class="btn-accion-pdf"><i class="fas fa-file-pdf"></i></a>
                                 <a href="facturar.php?id=<?php echo $p['id']; ?>" title="Facturar" style="color:#64748b;"><i class="fas fa-file-invoice"></i></a>
+                                
+                                <button type="button" title="Eliminar Pedido" onclick="confirmarEliminacion(<?php echo $p['id']; ?>)" style="background:none; border:none; color:#ef4444; cursor:pointer; padding:0; font-size:1rem; transition:0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
                             </div>
                         </div>
                     </td>
@@ -148,6 +193,47 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </tbody>
         </table>
     </div>
+
+    <div id="modalEliminar" class="modal-audit">
+        <div class="modal-content-audit">
+            <h3 style="margin-top:0; color:#1e293b;"><i class="fas fa-exclamation-triangle" style="color:#ef4444;"></i> Eliminar Pedido <span id="text-folio"></span></h3>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Esta acción borrará el pedido y sus desgloses de productos. Escribe el motivo de la cancelación para el log:</p>
+            
+            <form method="POST">
+                <input type="hidden" name="pedido_id_eliminar" id="pedido_id_eliminar">
+                <input type="hidden" name="eliminar_pedido" value="1">
+                
+                <textarea name="motivo_eliminacion" id="motivo_eliminacion" class="text-area-audit" placeholder="Ej. El cliente canceló el pedido / Error en captura..." required></textarea>
+                
+                <div style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button type="button" class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+                    <button type="submit" class="btn-confirmar-eliminar">Eliminar y Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="../js/admin.js"></script>
+    <script>
+        // Funciones JavaScript nativas para el control del Modal
+        function confirmarEliminacion(id) {
+            document.getElementById('pedido_id_eliminar').value = id;
+            document.getElementById('text-folio').innerText = '#' + id;
+            document.getElementById('motivo_eliminacion').value = '';
+            document.getElementById('modalEliminar').style.display = 'flex';
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalEliminar').style.display = 'none';
+        }
+
+        // Cerrar al dar clic fuera del recuadro
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalEliminar');
+            if (event.target == modal) {
+                cerrarModal();
+            }
+        }
+    </script>
 </body>
 </html>

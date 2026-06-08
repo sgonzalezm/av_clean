@@ -34,7 +34,7 @@ if (isset($_GET['exportar']) && $_GET['exportar'] == 'excel' && isset($_GET['id'
     exit();
 }
 
-// --- 2. CONSULTA DE ÓRDENES Y DETALLES ---
+// --- 2. CONSULTA DE ÓRDENES ---
 $ordenes = $pdo->query("SELECT * FROM ordenes_produccion ORDER BY fecha_registro DESC")->fetchAll();
 $detalle_id = $_GET['ver'] ?? null;
 $insumos_detalle = [];
@@ -62,6 +62,22 @@ if ($detalle_id) {
         :root { --accent: #4c51bf; --dark: #1e293b; --success: #38a169; }
         body { background: #f8fafc; margin: 0; font-family: sans-serif; }
 
+        /* Mejora en Botones para móviles */
+        .btn-action { 
+            padding: 12px 18px; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            text-decoration: none; 
+            font-size: 1rem; 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center;
+            gap: 8px;
+            min-width: 45px;
+            transition: transform 0.1s;
+        }
+        .btn-action:active { transform: scale(0.95); }
+
         .header-mobile { display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--dark); color: white; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 2000; }
         .main { padding: 25px; transition: 0.3s; }
 
@@ -76,7 +92,7 @@ if ($detalle_id) {
             .mobile-history { display: flex !important; flex-direction: column; gap: 15px; }
         }
 
-        .badge { padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+        .badge { padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; }
         .badge-pendiente { background: #fef3c7; color: #92400e; }
         .badge-surtido { background: #e0f2fe; color: #0369a1; }
         .badge-terminado { background: #dcfce7; color: #15803d; }
@@ -84,17 +100,15 @@ if ($detalle_id) {
         .mobile-history { display: none; }
         .order-card { background: white; border-radius: 15px; padding: 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .card-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-
         .card-detalle { background: #fff; border-radius: 15px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 25px; }
         .grid-detalle { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
-        .table-mini { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        .table-mini th { text-align: left; padding: 10px; background: #f8fafc; color: #64748b; }
-        .table-mini td { padding: 10px; border-top: 1px solid #f1f5f9; }
+        .table-mini { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .table-mini th { text-align: left; padding: 12px; background: #f8fafc; color: #64748b; }
+        .table-mini td { padding: 12px; border-top: 1px solid #f1f5f9; }
 
         .search-box { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-sizing: border-box; font-size: 1rem; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2500; }
         .overlay.active { display: block; }
-        .btn-action { padding: 10px 15px; border-radius: 10px; font-weight: bold; text-decoration: none; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 5px; }
     </style>
 </head>
 <body>
@@ -117,16 +131,15 @@ if ($detalle_id) {
         <div class="card-detalle">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
                 <h3 style="margin:0;"><i class="fas fa-file-invoice"></i> Orden #<?php echo $detalle_id; ?></h3>
-                <div style="display:flex; gap:8px;">
-                    <a href="?exportar=excel&id=<?php echo $detalle_id; ?>" style="background:#1d6f42; color:white; padding:8px 12px; border-radius:8px; text-decoration:none; font-size:0.7rem; font-weight:bold;"><i class="fas fa-file-excel"></i></a>
-                    <a href="generar_pdf_produccion.php?id=<?php echo $detalle_id; ?>" target="_blank" style="background:#2b6cb0; color:white; padding:8px 12px; border-radius:8px; text-decoration:none; font-size:0.7rem; font-weight:bold;"><i class="fas fa-industry"></i></a>
-                    <a href="historial_ordenes.php" style="background:#e2e8f0; color:#475569; padding:8px 12px; border-radius:8px; text-decoration:none;"><i class="fas fa-times"></i></a>
+                <div style="display:flex; gap:10px;">
+                    <a href="?exportar=excel&id=<?php echo $detalle_id; ?>" class="btn-action" style="background:#1d6f42; color:white;" title="Excel"><i class="fas fa-file-excel"></i></a>
+                    <a href="generar_pdf_produccion.php?id=<?php echo $detalle_id; ?>" target="_blank" class="btn-action" style="background:#c53030; color:white;" title="PDF Producción"><i class="fas fa-file-pdf"></i></a>
+                    <a href="?ver=<?php echo $detalle_id; ?>" class="btn-action" style="background:#2b6cb0; color:white;" title="Fabrica"><i class="fas fa-industry"></i></a>
+                    <a href="historial_ordenes.php" class="btn-action" style="background:#e2e8f0; color:#475569;"><i class="fas fa-times"></i></a>
                 </div>
             </div>
-
             <div class="grid-detalle">
-                <div>
-                    <h4 style="color:#2b6cb0; margin-top:0;"><i class="fas fa-boxes"></i> Productos</h4>
+                <div><h4><i class="fas fa-boxes"></i> Productos</h4>
                     <table class="table-mini">
                         <thead><tr><th>Producto</th><th style="text-align:right;">Lts</th></tr></thead>
                         <tbody>
@@ -136,8 +149,7 @@ if ($detalle_id) {
                         </tbody>
                     </table>
                 </div>
-                <div>
-                    <h4 style="color:#4a5568; margin-top:0;"><i class="fas fa-flask"></i> Insumos</h4>
+                <div><h4><i class="fas fa-flask"></i> Insumos</h4>
                     <table class="table-mini">
                         <thead><tr><th>Insumo</th><th style="text-align:right;">Cant.</th></tr></thead>
                         <tbody>
@@ -160,29 +172,19 @@ if ($detalle_id) {
             <table id="tableHistory" style="width:100%; border-collapse:collapse;">
                 <thead>
                     <tr style="background:#f8fafc; border-bottom:2px solid #edf2f7;">
-                        <th style="padding:15px; text-align:left;">Folio</th>
-                        <th>Fecha</th>
-                        <th>Estado</th>
-                        <th>Inversión</th>
-                        <th style="text-align:right; padding-right:15px;">Acciones</th>
+                        <th style="padding:15px;">Folio</th><th>Fecha</th><th>Estado</th><th>Inversión</th><th style="text-align:right; padding-right:15px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($ordenes as $o): ?>
                     <tr class="history-row" style="border-bottom:1px solid #f1f5f9;">
                         <td style="padding:15px;" class="folio"><strong>#<?php echo $o['id']; ?></strong></td>
-                        <td><small><?php echo date('d/m/y H:i', strtotime($o['fecha_registro'])); ?></small></td>
-                        <td class="status">
-                            <?php 
-                                $est = $o['estado'] ?? 'PENDIENTE';
-                                $clase = ($est == 'SURTIDO') ? 'badge-surtido' : (($est == 'TERMINADO') ? 'badge-terminado' : 'badge-pendiente');
-                            ?>
-                            <span class="badge <?php echo $clase; ?>"><?php echo $est; ?></span>
-                        </td>
-                        <td><strong>$<?php echo number_format($o['costo_total_insumos'], 2); ?></strong></td>
+                        <td><?php echo date('d/m/y H:i', strtotime($o['fecha_registro'])); ?></td>
+                        <td><span class="badge <?php echo ($o['estado']=='SURTIDO'?'badge-surtido':($o['estado']=='TERMINADO'?'badge-terminado':'badge-pendiente')); ?>"><?php echo $o['estado']??'PENDIENTE'; ?></span></td>
+                        <td>$<?php echo number_format($o['costo_total_insumos'], 2); ?></td>
                         <td style="text-align:right; padding-right:15px;">
                             <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                <?php if($est != 'TERMINADO'): ?>
+                                <?php if($o['estado'] != 'TERMINADO'): ?>
                                     <a href="finalizar_produccion.php?id=<?php echo $o['id']; ?>" class="btn-action" style="background:#3182ce; color:white;"><i class="fas fa-check-double"></i></a>
                                 <?php endif; ?>
                                 <a href="?ver=<?php echo $o['id']; ?>" class="btn-action" style="background:#f1f5f9; color:var(--dark);"><i class="fas fa-eye"></i></a>
@@ -193,41 +195,12 @@ if ($detalle_id) {
                 </tbody>
             </table>
         </div>
-
-        <div class="mobile-history">
-            <?php foreach ($ordenes as $o): 
-                $est = $o['estado'] ?? 'PENDIENTE';
-                $clase = ($est == 'SURTIDO') ? 'badge-surtido' : (($est == 'TERMINADO') ? 'badge-terminado' : 'badge-pendiente');
-            ?>
-            <div class="order-card history-row">
-                <div class="card-row">
-                    <span class="folio" style="font-weight:900; font-size:1.1rem; color:var(--dark);">#<?php echo $o['id']; ?></span>
-                    <span class="status badge <?php echo $clase; ?>"><?php echo $est; ?></span>
-                </div>
-                <div class="card-row">
-                    <small style="color:#64748b;"><i class="far fa-calendar-alt"></i> <?php echo date('d/M/y H:i', strtotime($o['fecha_registro'])); ?></small>
-                    <strong style="color:var(--dark);">$<?php echo number_format($o['costo_total_insumos'], 2); ?></strong>
-                </div>
-                <hr style="border:0; border-top:1px solid #f1f5f9; margin:15px 0;">
-                <div style="display:flex; gap:10px;">
-                    <a href="?ver=<?php echo $o['id']; ?>" class="btn-action" style="flex:1; justify-content:center; background:#f1f5f9; color:var(--dark);"><i class="fas fa-eye"></i> DETALLE</a>
-                    <?php if($est != 'TERMINADO'): ?>
-                        <a href="finalizar_produccion.php?id=<?php echo $o['id']; ?>" class="btn-action" style="flex:1; justify-content:center; background:#3182ce; color:white;"><i class="fas fa-check-double"></i> FINALIZAR</a>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <?php endforeach; ?>
         </div>
-    </div>
-
     <script>
         function filterHistory() {
             let input = document.getElementById("historialSearch").value.toLowerCase();
-            let rows = document.querySelectorAll(".history-row");
-            rows.forEach(row => {
-                let folio = row.querySelector(".folio").innerText.toLowerCase();
-                let status = row.querySelector(".status").innerText.toLowerCase();
-                row.style.display = (folio.includes(input) || status.includes(input)) ? "" : "none";
+            document.querySelectorAll(".history-row").forEach(row => {
+                row.style.display = (row.innerText.toLowerCase().includes(input)) ? "" : "none";
             });
         }
         function toggleMenu() {

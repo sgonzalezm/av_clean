@@ -57,7 +57,7 @@ try {
 
     // --- 4. COMISIONES ---
     // Puedes ajustar esto para que solo sea sobre pedidos 'Pagados' si lo prefieres
-    $comision_acumulada = $venta_mes * 0.03;
+    $comision_acumulada = $venta_mes * 0.05;
     $nivel = "Bronce"; $color_nivel = "#cd7f32";
     if($venta_mes > 20000) { $nivel = "Plata"; $color_nivel = "#C0C0C0"; }
     if($venta_mes > 40000) { $nivel = "Oro"; $color_nivel = "#FFD700"; }
@@ -124,7 +124,7 @@ try {
             <div class="card card-nivel" style="border-top: 5px solid <?php echo $color_nivel; ?>">
                 <h3>Mi Nivel: <span style="color: <?php echo $color_nivel; ?>"><?php echo $nivel; ?></span></h3>
                 <p class="monto">$<?php echo number_format($comision_acumulada, 2); ?></p>
-                <small>Comisión estimada (3%)</small>
+                <small>Comisión estimada (5%)</small>
             </div>
         </div>
 

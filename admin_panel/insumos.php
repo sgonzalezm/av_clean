@@ -3,6 +3,56 @@ require_once '../includes/session.php';
 require_once '../includes/conexion.php';
 verificarSesion();
 
+// --- LÓGICA DE EXPORTACIÓN A EXCEL (NUEVO) ---
+if (isset($_GET['exportar']) && $_GET['exportar'] == 'excel') {
+    // 1. Limpieza total de búferes para evitar fugas de HTML
+    if (ob_get_length()) ob_end_clean();
+
+    header("Content-Type: application/vnd.ms-excel; charset=utf-8");
+    header("Content-Disposition: attachment; filename=Reporte_Insumos_AHD_Clean.xls");
+    header("Pragma: no-cache");
+    header("Expires: 0");
+
+    // Consulta de insumos idéntica a la del panel principal para coherencia de datos
+    $query_export = "
+        SELECT i.*, p.nombre_empresa,
+        (SELECT GROUP_CONCAT(CONCAT(cantidad_capacidad, ' ', i.unidad_medida, ' ($', precio_presentacion, ')') SEPARATOR ' / ') 
+         FROM insumo_presentaciones ip WHERE ip.id_insumo = i.id) as presentaciones_texto
+        FROM insumos i 
+        LEFT JOIN proveedores p ON i.id_proveedor = p.id_proveedor 
+        ORDER BY i.nombre ASC";
+    $insumos_export = $pdo->query($query_export)->fetchAll();
+
+    // Estructura de Tabla Excel Nativa compatible
+    echo '<table border="1" style="font-family: Arial, sans-serif;">';
+    echo '<tr style="background-color: #3b82f6; color: white; font-weight: bold;">';
+    echo '<th>ID</th>';
+    echo '<th>Materia Prima / Insumo</th>';
+    echo '<th>Proveedor</th>';
+    echo '<th>Unidad Medida</th>';
+    echo '<th>Precio Base Unitario</th>';
+    echo '<th>Stock Actual</th>';
+    echo '<th>Múltiplos / Presentaciones</th>';
+    echo '</tr>';
+
+    foreach ($insumos_export as $ie) {
+        $presentaciones = !empty($ie['presentaciones_texto']) ? $ie['presentaciones_texto'] : 'Única';
+        $proveedor = !empty($ie['nombre_empresa']) ? $ie['nombre_empresa'] : 'Sin Proveedor';
+        
+        echo '<tr>';
+        echo '<td>' . $ie['id'] . '</td>';
+        echo '<td>' . htmlspecialchars($ie['nombre']) . '</td>';
+        echo '<td>' . htmlspecialchars($proveedor) . '</td>';
+        echo '<td style="text-align: center;">' . htmlspecialchars($ie['unidad_medida']) . '</td>';
+        echo '<td>$' . number_format($ie['precio_unitario'], 4) . '</td>';
+        echo '<td style="font-weight: bold;">' . (float)$ie['stock_actual'] . '</td>';
+        echo '<td>' . htmlspecialchars($presentaciones) . '</td>';
+        echo '</tr>';
+    }
+    echo '</table>';
+    exit();
+}
+
 // --- PROCESAMIENTO DE DATOS ---
 
 // 1. Eliminar Múltiplo
@@ -99,9 +149,14 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
     <div class="main">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
             <h1><i class="fas fa-flask"></i> Materias Primas</h1>
-            <button class="btn" onclick="document.getElementById('modalInsumo').style.display='block'" style="background:#3b82f6; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">
-                <i class="fas fa-plus"></i> Nuevo Insumo
-            </button>
+            <div style="display:flex; gap:10px;">
+                <a href="insumos.php?exportar=excel" class="btn" style="background:#10b981; color:white; text-decoration:none; display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:8px; font-weight:bold;">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
+                </a>
+                <button class="btn" onclick="document.getElementById('modalInsumo').style.display='block'" style="background:#3b82f6; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">
+                    <i class="fas fa-plus"></i> Nuevo Insumo
+                </button>
+            </div>
         </div>
 
         <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Buscar materia prima..." class="search-box" style="width:100%; padding:12px; margin-bottom:20px; border-radius:8px; border:1px solid #ddd;">
@@ -137,7 +192,7 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
                         ?>
                     </td>
                     <td>
-                        $<?php echo number_format($i['precio_unitario'], 2); ?>
+                        $<?php echo number_format($i['precio_unitario'], 4); ?>
                         <button class="btn-edit-small" onclick="abrirModalPrecio(<?php echo $i['id']; ?>, '<?php echo addslashes($i['nombre']); ?>', <?php echo $i['precio_unitario']; ?>)"><i class="fas fa-edit"></i></button>
                     </td>
                     <td><strong><?php echo (float)$i['stock_actual']; ?> <?php echo $i['unidad_medida']; ?></strong></td>
