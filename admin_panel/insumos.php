@@ -3,6 +3,18 @@ require_once '../includes/session.php';
 require_once '../includes/conexion.php';
 verificarSesion();
 
+// --- NUEVO: ACTUALIZAR STOCK ---
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['actualizar_stock'])) {
+    $id_insumo = $_POST['id_insumo_stock'];
+    $nuevo_stock = floatval($_POST['nuevo_stock']);
+    
+    $stmt = $pdo->prepare("UPDATE insumos SET stock_actual = ? WHERE id = ?");
+    $stmt->execute([$nuevo_stock, $id_insumo]);
+    
+    header("Location: insumos.php");
+    exit();
+}
+
 // --- LÓGICA DE EXPORTACIÓN A EXCEL (NUEVO) ---
 if (isset($_GET['exportar']) && $_GET['exportar'] == 'excel') {
     // 1. Limpieza total de búferes para evitar fugas de HTML
@@ -142,6 +154,10 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         .list-edit-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; background: #fafafa; }
         .btn-edit-small { background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 0.9rem; }
         .btn-del { color: #dc3545; background: none; border: none; cursor: pointer; margin-left: 10px; }
+        .btn-stock { background: #10b981; color: white; padding: 6px 10px; border-radius: 6px; border: none; cursor: pointer; margin-right: 5px; }
+        .btn-stock:hover { background: #059669; }
+        .stock-low { color: #dc3545; font-weight: bold; }
+        .stock-normal { color: #28a745; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -161,24 +177,27 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
 
         <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Buscar materia prima..." class="search-box" style="width:100%; padding:12px; margin-bottom:20px; border-radius:8px; border:1px solid #ddd;">
 
-        <table id="insumosTable">
+        <table id="insumosTable" style="width:100%; border-collapse: collapse;">
             <thead>
-                <tr>
-                    <th>Insumo / Proveedor</th>
-                    <th>Presentaciones</th>
-                    <th>Precio Base</th>
-                    <th>Stock</th>
-                    <th>Gestión</th>
+                <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                    <th style="text-align:left; padding:12px;">Insumo / Proveedor</th>
+                    <th style="text-align:left; padding:12px;">Presentaciones</th>
+                    <th style="text-align:left; padding:12px;">Precio Base</th>
+                    <th style="text-align:center; padding:12px;">Stock</th>
+                    <th style="text-align:center; padding:12px;">Gestión</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($insumos as $i): ?>
-                <tr>
-                    <td>
+                <?php foreach ($insumos as $i): 
+                    $stock = (float)$i['stock_actual'];
+                    $stockClass = $stock <= 0 ? 'stock-low' : 'stock-normal';
+                ?>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:12px;">
                         <strong><?php echo htmlspecialchars($i['nombre']); ?></strong><br>
-                        <small><?php echo htmlspecialchars($i['nombre_empresa'] ?? 'S/P'); ?></small>
+                        <small style="color:#64748b;"><?php echo htmlspecialchars($i['nombre_empresa'] ?? 'S/P'); ?></small>
                     </td>
-                    <td>
+                    <td style="padding:12px;">
                         <?php 
                         if($i['presentaciones_data']): 
                             $pres = explode('||', $i['presentaciones_data']);
@@ -191,12 +210,22 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
                         else: echo "<small style='color:#ccc;'>Única</small>"; endif; 
                         ?>
                     </td>
-                    <td>
+                    <td style="padding:12px;">
                         $<?php echo number_format($i['precio_unitario'], 4); ?>
-                        <button class="btn-edit-small" onclick="abrirModalPrecio(<?php echo $i['id']; ?>, '<?php echo addslashes($i['nombre']); ?>', <?php echo $i['precio_unitario']; ?>)"><i class="fas fa-edit"></i></button>
+                        <button class="btn-edit-small" onclick="abrirModalPrecio(<?php echo $i['id']; ?>, '<?php echo addslashes($i['nombre']); ?>', <?php echo $i['precio_unitario']; ?>)">
+                            <i class="fas fa-edit"></i>
+                        </button>
                     </td>
-                    <td><strong><?php echo (float)$i['stock_actual']; ?> <?php echo $i['unidad_medida']; ?></strong></td>
-                    <td style="white-space:nowrap;">
+                    <td style="padding:12px; text-align:center;">
+                        <span class="<?php echo $stockClass; ?>">
+                            <?php echo number_format($stock, 2); ?> <?php echo $i['unidad_medida']; ?>
+                        </span>
+                    </td>
+                    <td style="padding:12px; text-align:center; white-space:nowrap;">
+                        <!-- NUEVO BOTÓN PARA AJUSTAR STOCK -->
+                        <button class="btn-stock" onclick="abrirModalStock(<?php echo $i['id']; ?>, '<?php echo addslashes($i['nombre']); ?>', <?php echo $stock; ?>, '<?php echo $i['unidad_medida']; ?>')">
+                            <i class="fas fa-gas-pump"></i> Stock
+                        </button>
                         <button class="btn" style="background:#f59e0b; color:white; padding:6px 10px; border-radius:6px; border:none; cursor:pointer;" 
                                 onclick='abrirModalEditar(<?php echo json_encode($i); ?>)'>
                             <i class="fas fa-pen"></i> Editar
@@ -208,6 +237,7 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         </table>
     </div>
 
+    <!-- MODAL PARA NUEVO INSUMO -->
     <div id="modalInsumo" class="modal">
         <div class="modal-content">
             <h3><i class="fas fa-plus-circle"></i> Nuevo Insumo</h3>
@@ -241,6 +271,52 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         </div>
     </div>
 
+    <!-- NUEVO MODAL PARA AJUSTAR STOCK -->
+    <div id="modalStock" class="modal">
+        <div class="modal-content" style="max-width:400px;">
+            <h3 style="margin-top:0; color:#1e293b;">
+                <i class="fas fa-gas-pump" style="color:#10b981;"></i> 
+                Ajustar Stock
+            </h3>
+            <form method="POST">
+                <input type="hidden" name="actualizar_stock" value="1">
+                <input type="hidden" name="id_insumo_stock" id="id_insumo_stock">
+                
+                <div style="margin-bottom:20px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px; color:#475569;">
+                        <i class="fas fa-box"></i> Insumo:
+                    </label>
+                    <p id="nombre_insumo_stock" style="background:#f1f5f9; padding:10px; border-radius:6px; margin:0; font-weight:bold; color:#1e293b;"></p>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px; color:#475569;">
+                        <i class="fas fa-arrow-up"></i> Nueva Cantidad:
+                    </label>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="number" name="nuevo_stock" id="nuevo_stock_input" step="0.01" class="form-control" required style="margin-bottom:0; flex:1;">
+                        <span id="unidad_stock_actual" style="font-weight:bold; color:#64748b; min-width:30px;"></span>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom:20px; background:#f8fafc; padding:10px; border-radius:6px; border:1px solid #e2e8f0;">
+                    <small style="color:#64748b;">
+                        <i class="fas fa-info-circle"></i> 
+                        Stock actual: <strong id="stock_actual_display" style="color:#1e293b;">0</strong>
+                    </small>
+                </div>
+                
+                <button type="submit" class="btn-save" style="background:#10b981;">
+                    <i class="fas fa-save"></i> Actualizar Stock
+                </button>
+                <button type="button" onclick="document.getElementById('modalStock').style.display='none'" style="width:100%; margin-top:10px; background:none; border:none; color:#94a3b8; cursor:pointer; padding:10px;">
+                    Cancelar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PARA EDITAR COMPLETO -->
     <div id="modalEditarFull" class="modal">
         <div class="modal-content">
             <h3 style="margin-bottom:10px;"><i class="fas fa-pen"></i> Editar Insumo</h3>
@@ -283,6 +359,7 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         </div>
     </div>
 
+    <!-- MODAL PARA EDITAR MÚLTIPLO INDIVIDUAL -->
     <div id="modalEditSinglePres" class="modal" style="z-index:3000;">
         <div class="modal-content" style="max-width:350px; margin-top:15%;">
             <h4>Editar Múltiplo</h4>
@@ -299,6 +376,7 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         </div>
     </div>
 
+    <!-- MODAL PARA AGREGAR MÚLTIPLO -->
     <div id="modalPres" class="modal">
         <div class="modal-content">
             <h3 id="pres_nombre_insumo">Agregar Múltiplo</h3>
@@ -315,6 +393,7 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         </div>
     </div>
 
+    <!-- MODAL PARA EDITAR PRECIO -->
     <div id="modalPrecio" class="modal">
         <div class="modal-content">
             <h3 id="edit_nombre_insumo">Actualizar Precio</h3>
@@ -331,6 +410,22 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
     <script>
         let currentInsumoId = null;
         let currentInsumoNombre = "";
+
+        // NUEVA FUNCIÓN PARA ABRIR MODAL DE STOCK
+        function abrirModalStock(id, nombre, stockActual, unidad) {
+            document.getElementById('id_insumo_stock').value = id;
+            document.getElementById('nombre_insumo_stock').innerHTML = '<i class="fas fa-box"></i> ' + nombre;
+            document.getElementById('nuevo_stock_input').value = stockActual;
+            document.getElementById('stock_actual_display').textContent = stockActual + ' ' + unidad;
+            document.getElementById('unidad_stock_actual').textContent = unidad;
+            document.getElementById('modalStock').style.display = 'block';
+            
+            // Enfocar y seleccionar el input para facilitar la edición
+            setTimeout(function() {
+                document.getElementById('nuevo_stock_input').focus();
+                document.getElementById('nuevo_stock_input').select();
+            }, 100);
+        }
 
         function abrirModalEditar(insumo) {
             currentInsumoId = insumo.id;
@@ -395,10 +490,24 @@ $proveedores = $pdo->query("SELECT id_proveedor, nombre_empresa FROM proveedores
         function filterTable() {
             let filter = document.getElementById("searchInput").value.toLowerCase();
             let rows = document.querySelectorAll("#insumosTable tbody tr");
-            rows.forEach(row => { row.style.display = row.innerText.toLowerCase().includes(filter) ? "" : "none"; });
+            rows.forEach(row => { 
+                row.style.display = row.innerText.toLowerCase().includes(filter) ? "" : "none"; 
+            });
         }
 
-        window.onclick = function(e) { if (e.target.className === 'modal') e.target.style.display = "none"; }
+        // Cerrar modales al hacer clic fuera
+        window.onclick = function(e) { 
+            if (e.target.className === 'modal') {
+                e.target.style.display = "none"; 
+            }
+        }
+
+        // Permitir cerrar el modal de stock con Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.getElementById('modalStock').style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>

@@ -10,6 +10,16 @@ if(isset($_POST['actualizar_pedido'])) {
     
     if(isset($_POST['nuevo_estado_logistica'])) {
         $nuevo_estado = $_POST['nuevo_estado_logistica'];
+        
+        // 🔒 BLOQUEO: Impedir cambios a "Surtido" o "Entregado"
+        $estados_bloqueados = ['Surtido', 'Entregado'];
+        if (in_array($nuevo_estado, $estados_bloqueados)) {
+            // Redirigir con mensaje de error
+            header("Location: pedidos.php?estado=" . ($_GET['estado'] ?? 'Por Surtir') . "&msg=error_bloqueado");
+            exit;
+        }
+        
+        // Solo permitir actualizar si NO es un estado bloqueado
         $stmt = $pdo->prepare("UPDATE pedidos SET status_logistica = ? WHERE id = ?");
         $stmt->execute([$nuevo_estado, $id]);
     }
@@ -20,7 +30,9 @@ if(isset($_POST['actualizar_pedido'])) {
         $stmt->execute([$nuevo_pago, $id]);
     }
 
-    header("Location: pedidos.php?estado=" . ($_GET['estado'] ?? 'Por Surtir') . "&msg=actualizado");
+    // Verificar si hay mensaje de error
+    $msg = isset($_GET['msg']) ? $_GET['msg'] : 'actualizado';
+    header("Location: pedidos.php?estado=" . ($_GET['estado'] ?? 'Por Surtir') . "&msg=" . $msg);
     exit;
 }
 
@@ -104,6 +116,10 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .btn-cancelar { background: #94a3b8; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; }
         .btn-confirmar-eliminar { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; }
         .text-area-audit { width: 100%; height: 80px; margin: 12px 0; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-family: sans-serif; resize: none; box-sizing: border-box; }
+
+        /* Estilo para mensaje de bloqueo */
+        .alert-bloqueo { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; border-left: 4px solid #ef4444; }
+        .alert-bloqueo i { font-size: 1.2rem; }
     </style>
 </head>
 <body>
@@ -124,6 +140,13 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         <?php if(isset($error)): ?>
             <div style="background:#fee2e2; color:#991b1b; padding:12px; border-radius:8px; margin-bottom:15px; font-weight:600;"><?php echo $error; ?></div>
+        <?php endif; ?>
+
+        <?php if(isset($_GET['msg']) && $_GET['msg'] == 'error_bloqueado'): ?>
+            <div class="alert-bloqueo">
+                <i class="fas fa-lock"></i>
+                No está permitido cambiar el estado a <strong>"Surtido"</strong> o <strong>"Entregado"</strong> desde esta sección. Use el módulo de <strong>Ordenes de Trabajo</strong> para realizar esos cambios.
+            </div>
         <?php endif; ?>
 
         <div class="tabs">
@@ -171,9 +194,18 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <input type="hidden" name="actualizar_pedido" value="1">
                                 <select name="nuevo_estado_logistica" class="select-status" onchange="this.form.submit()">
                                     <option value="">Logística...</option>
-                                    <?php foreach($estados_log as $el): ?>
+                                    <?php 
+                                    // 🔒 Mostrar solo estados permitidos (excluyendo Surtido y Entregado)
+                                    $estados_permitidos = array_filter($estados_log, function($el) {
+                                        return !in_array($el, ['Surtido', 'Entregado']);
+                                    });
+                                    foreach($estados_permitidos as $el): 
+                                    ?>
                                         <option value="<?php echo $el; ?>" <?php echo ($p['status_logistica'] == $el) ? 'selected' : ''; ?>><?php echo $el; ?></option>
                                     <?php endforeach; ?>
+                                    <?php if(in_array($p['status_logistica'], ['Surtido', 'Entregado'])): ?>
+                                        <option value="<?php echo $p['status_logistica']; ?>" selected disabled style="color:#94a3b8;">🔒 <?php echo $p['status_logistica']; ?></option>
+                                    <?php endif; ?>
                                 </select>
                             </form>
 

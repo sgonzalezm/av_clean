@@ -47,10 +47,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['calcular'])) {
                         'cantidad_neta_total' => 0,
                         'total_a_comprar' => 0,
                         'precio_base_u' => $c['precio_unitario'],
-                        'costo_final' => 0
+                        'costo_final' => 0,
+                        'cantidad_requerida' => 0 // NUEVO CAMPO
                     ];
                 }
                 $insumos_necesarios[$id_insumo]['cantidad_neta_total'] += $cantidad_neta_item;
+                $insumos_necesarios[$id_insumo]['cantidad_requerida'] += $cantidad_neta_item; // NUEVO
             }
         }
     }
@@ -120,9 +122,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
                 }
             }
 
-            $stmt_di = $pdo->prepare("INSERT INTO orden_detalle_insumos (id_orden, id_insumo, cantidad_usada, precio_al_momento) VALUES (?, ?, ?, ?)");
+            // MODIFICADO: Ahora incluye cantidad_requerida
+            $stmt_di = $pdo->prepare("INSERT INTO orden_detalle_insumos (id_orden, id_insumo, cantidad_usada, cantidad_requerida, precio_al_momento) VALUES (?, ?, ?, ?, ?)");
             foreach ($reporte_confirmado as $ins) {
-                $stmt_di->execute([$id_orden, $ins['id_insumo'], $ins['total_a_comprar'], ($ins['total_a_comprar'] > 0 ? $ins['costo_final']/$ins['total_a_comprar'] : $ins['precio_base_u'])]);
+                $stmt_di->execute([
+                    $id_orden,
+                    $ins['id_insumo'],
+                    $ins['total_a_comprar'],       // cantidad_usada (lo que se compra)
+                    $ins['cantidad_requerida'],     // cantidad_requerida (necesario para fabricar)
+                    ($ins['total_a_comprar'] > 0 ? $ins['costo_final']/$ins['total_a_comprar'] : $ins['precio_base_u'])
+                ]);
             }
 
             $pdo->commit();
@@ -161,12 +170,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
 
         .header-prod { background: var(--accent); color: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; }
         
-        /* Buscador Estilos */
         .search-container { margin-bottom: 20px; position: relative; }
         .search-container input { width: 100%; padding: 15px 20px 15px 45px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; box-sizing: border-box; }
         .search-container i { position: absolute; left: 15px; top: 18px; color: #94a3b8; font-size: 1.2rem; }
 
-        /* Grid de fórmulas - Ajustado para ser más compacto */
         .formulas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
         .card-formula { background: white; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: 0.2s; }
         .card-formula:hover { border-color: var(--accent); }
@@ -218,7 +225,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
                         <tr>
                             <th>Insumo</th>
                             <th>Stock Bodega</th>
-                            <th>Necesario</th>
+                            <th>Requerido para fabricar</th> <!-- NUEVA COLUMNA -->
+                            <th>Necesario (neto)</th>
                             <th>A Comprar</th>
                             <th>Costo Estimado</th>
                         </tr>
@@ -228,6 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
                         <tr>
                             <td><strong><?php echo htmlspecialchars($item['nombre']); ?></strong></td>
                             <td><span class="badge-stock"><?php echo number_format($item['stock_actual'], 2); ?> <?php echo $item['unidad']; ?></span></td>
+                            <td><strong><?php echo number_format($item['cantidad_requerida'], 2); ?></strong></td> <!-- NUEVO -->
                             <td><?php echo number_format($item['cantidad_neta_total'], 2); ?></td>
                             <td>
                                 <?php if($item['total_a_comprar'] > 0): ?>
@@ -290,7 +299,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirmar_fabricacion'
             document.getElementById('overlay').classList.toggle('active');
         }
 
-        // Función de Búsqueda
         function filtrarFormulas() {
             let input = document.getElementById('buscador').value.toLowerCase();
             let lista = document.getElementById('lista-formulas');

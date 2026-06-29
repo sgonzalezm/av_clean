@@ -16,7 +16,7 @@ if (isset($_GET['exportar']) && $_GET['exportar'] == 'excel' && isset($_GET['id'
         SELECT odi.*, i.nombre, i.unidad_medida, prov.nombre_empresa as proveedor 
         FROM orden_detalle_insumos odi 
         JOIN insumos i ON odi.id_insumo = i.id 
-        LEFT JOIN proveedores prov ON i.id_proveedor = prov.id_proveedor
+        LEFT JOIN proveedores prov ON i.id_proveedor = prov.id_proveedor 
         WHERE odi.id_orden = ?
         ORDER BY prov.nombre_empresa ASC
     ");
@@ -24,26 +24,44 @@ if (isset($_GET['exportar']) && $_GET['exportar'] == 'excel' && isset($_GET['id'
     $insumos_excel = $stmt_i->fetchAll();
 
     echo '<table border="1">';
-    echo '<tr><th colspan="3" style="background:#4c51bf; color:white;">AHD CLEAN - REQUISICION DE ORDEN #' . $id_orden . '</th></tr>';
-    echo '<tr><th>Proveedor</th><th>Insumo</th><th>Cantidad Requerida</th></tr>';
+    echo '<tr><th colspan="4" style="background:#4c51bf; color:white;">AHD CLEAN - REQUISICION DE ORDEN #' . $id_orden . '</th></tr>';
+    echo '<tr><th>Proveedor</th><th>Insumo</th><th>Cantidad Requerida</th><th>Cantidad a Comprar</th></tr>';
     foreach ($insumos_excel as $i) {
         $p_nombre = $i['proveedor'] ?? 'Sin Proveedor';
-        echo "<tr><td>$p_nombre</td><td>{$i['nombre']}</td><td>" . number_format($i['cantidad_usada'], 3) . " {$i['unidad_medida']}</td></tr>";
+        echo "<tr>
+                <td>$p_nombre</td>
+                <td>{$i['nombre']}</td>
+                <td>" . number_format($i['cantidad_requerida'] ?? 0, 3) . " {$i['unidad_medida']}</td>
+                <td>" . number_format($i['cantidad_usada'], 3) . " {$i['unidad_medida']}</td>
+              </tr>";
     }
     echo '</table>';
     exit();
 }
 
-// --- 2. CONSULTA DE ÓRDENES ---
+// --- 2. CONSULTA DE ÓRDENES Y DETALLES ---
 $ordenes = $pdo->query("SELECT * FROM ordenes_produccion ORDER BY fecha_registro DESC")->fetchAll();
 $detalle_id = $_GET['ver'] ?? null;
 $insumos_detalle = [];
 $productos_detalle = [];
+$proveedores_en_orden = [];
 
 if ($detalle_id) {
-    $stmt_i = $pdo->prepare("SELECT odi.*, i.nombre, i.unidad_medida, prov.nombre_empresa as proveedor FROM orden_detalle_insumos odi JOIN insumos i ON odi.id_insumo = i.id LEFT JOIN proveedores prov ON i.id_proveedor = prov.id_proveedor WHERE odi.id_orden = ? ORDER BY prov.nombre_empresa ASC");
+    // Consulta de insumos incluyendo todos los campos de orden_detalle_insumos
+    $stmt_i = $pdo->prepare("SELECT odi.*, i.nombre, i.unidad_medida, prov.nombre_empresa as proveedor, prov.id_proveedor 
+                             FROM orden_detalle_insumos odi 
+                             JOIN insumos i ON odi.id_insumo = i.id 
+                             LEFT JOIN proveedores prov ON i.id_proveedor = prov.id_proveedor 
+                             WHERE odi.id_orden = ? ORDER BY prov.nombre_empresa ASC");
     $stmt_i->execute([$detalle_id]);
     $insumos_detalle = $stmt_i->fetchAll();
+
+    // Lógica para extraer proveedores únicos de esta orden
+    foreach($insumos_detalle as $item) {
+        if($item['id_proveedor']) {
+            $proveedores_en_orden[$item['id_proveedor']] = $item['proveedor'];
+        }
+    }
 
     $stmt_p = $pdo->prepare("SELECT odp.*, p.nombre FROM orden_detalle_productos odp JOIN productos p ON odp.id_producto = p.id WHERE odp.id_orden = ?");
     $stmt_p->execute([$detalle_id]);
@@ -62,20 +80,7 @@ if ($detalle_id) {
         :root { --accent: #4c51bf; --dark: #1e293b; --success: #38a169; }
         body { background: #f8fafc; margin: 0; font-family: sans-serif; }
 
-        /* Mejora en Botones para móviles */
-        .btn-action { 
-            padding: 12px 18px; 
-            border-radius: 12px; 
-            font-weight: bold; 
-            text-decoration: none; 
-            font-size: 1rem; 
-            display: inline-flex; 
-            align-items: center; 
-            justify-content: center;
-            gap: 8px;
-            min-width: 45px;
-            transition: transform 0.1s;
-        }
+        .btn-action { padding: 15px 20px; border-radius: 12px; font-weight: bold; text-decoration: none; font-size: 1.1rem; display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 50px; transition: transform 0.1s; }
         .btn-action:active { transform: scale(0.95); }
 
         .header-mobile { display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--dark); color: white; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 2000; }
@@ -99,21 +104,23 @@ if ($detalle_id) {
 
         .mobile-history { display: none; }
         .order-card { background: white; border-radius: 15px; padding: 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .card-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .card-detalle { background: #fff; border-radius: 15px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 25px; }
         .grid-detalle { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
         .table-mini { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         .table-mini th { text-align: left; padding: 12px; background: #f8fafc; color: #64748b; }
         .table-mini td { padding: 12px; border-top: 1px solid #f1f5f9; }
-
         .search-box { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-sizing: border-box; font-size: 1rem; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2500; }
         .overlay.active { display: block; }
+        
+        /* Estilos para resaltar diferencias */
+        .cant-requerida { color: #2b6cb0; font-weight: bold; }
+        .cant-compra { color: #2f855a; font-weight: bold; }
+        .cant-cero { color: #a0aec0; }
     </style>
 </head>
 <body>
     <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
-
     <div class="header-mobile">
         <button onclick="toggleMenu()" style="background:none; border:none; color:white; font-size:1.5rem;"><i class="fas fa-bars"></i></button>
         <span style="font-weight: 900; letter-spacing: 1px;">HISTORIAL AHD</span>
@@ -129,17 +136,28 @@ if ($detalle_id) {
 
         <?php if ($detalle_id): ?>
         <div class="card-detalle">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+            <div style="margin-bottom:20px;">
                 <h3 style="margin:0;"><i class="fas fa-file-invoice"></i> Orden #<?php echo $detalle_id; ?></h3>
-                <div style="display:flex; gap:10px;">
+                
+                <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:20px;">
                     <a href="?exportar=excel&id=<?php echo $detalle_id; ?>" class="btn-action" style="background:#1d6f42; color:white;" title="Excel"><i class="fas fa-file-excel"></i></a>
                     <a href="generar_pdf_produccion.php?id=<?php echo $detalle_id; ?>" target="_blank" class="btn-action" style="background:#c53030; color:white;" title="PDF Producción"><i class="fas fa-file-pdf"></i></a>
+                    
+                    <?php foreach($proveedores_en_orden as $p_id => $p_nombre): ?>
+                        <a href="generar_pdf_lote.php?id_orden=<?php echo $detalle_id; ?>&id_prov=<?php echo htmlspecialchars($p_nombre) ?>" target="_blank" class="btn-action" style="background:#805ad5; color:white;" title="PDF <?php echo $p_nombre; ?>">
+                            <i class="fas fa-file-pdf"></i> 
+                            <?php echo $p_nombre; ?>   
+                        </a>
+                    <?php endforeach; ?>
+
                     <a href="?ver=<?php echo $detalle_id; ?>" class="btn-action" style="background:#2b6cb0; color:white;" title="Fabrica"><i class="fas fa-industry"></i></a>
                     <a href="historial_ordenes.php" class="btn-action" style="background:#e2e8f0; color:#475569;"><i class="fas fa-times"></i></a>
                 </div>
             </div>
+
             <div class="grid-detalle">
-                <div><h4><i class="fas fa-boxes"></i> Productos</h4>
+                <div>
+                    <h4><i class="fas fa-boxes"></i> Productos</h4>
                     <table class="table-mini">
                         <thead><tr><th>Producto</th><th style="text-align:right;">Lts</th></tr></thead>
                         <tbody>
@@ -149,12 +167,45 @@ if ($detalle_id) {
                         </tbody>
                     </table>
                 </div>
-                <div><h4><i class="fas fa-flask"></i> Insumos</h4>
+                
+                <!-- MODIFICADO: Tabla de insumos ahora muestra ambos valores -->
+                <div>
+                    <h4><i class="fas fa-flask"></i> Insumos</h4>
                     <table class="table-mini">
-                        <thead><tr><th>Insumo</th><th style="text-align:right;">Cant.</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>Insumo</th>
+                                <th style="text-align:right;">Requerido</th>
+                                <th style="text-align:right;">A Comprar</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <?php foreach($insumos_detalle as $id): ?>
-                            <tr><td><?php echo htmlspecialchars($id['nombre']); ?></td><td style="text-align:right;"><strong><?php echo number_format($id['cantidad_usada'], 2); ?></strong> <small><?php echo $id['unidad_medida']; ?></small></td></tr>
+                            <?php foreach($insumos_detalle as $id): 
+                                $requerido = $id['cantidad_requerida'] ?? 0;
+                                $compra = $id['cantidad_usada'] ?? 0;
+                            ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($id['nombre']); ?></td>
+                                <td style="text-align:right;">
+                                    <span class="cant-requerida">
+                                        <?php echo number_format($requerido, 2); ?>
+                                    </span> 
+                                    <small><?php echo $id['unidad_medida']; ?></small>
+                                </td>
+                                <td style="text-align:right;">
+                                    <?php if($compra > 0): ?>
+                                        <span class="cant-compra">
+                                            <?php echo number_format($compra, 2); ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="cant-cero">
+                                            <i class="fas fa-check-circle" style="color:#38a169;"></i> 
+                                            <?php echo number_format($compra, 2); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <small><?php echo $id['unidad_medida']; ?></small>
+                                </td>
+                            </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
@@ -195,7 +246,8 @@ if ($detalle_id) {
                 </tbody>
             </table>
         </div>
-        </div>
+    </div>
+
     <script>
         function filterHistory() {
             let input = document.getElementById("historialSearch").value.toLowerCase();

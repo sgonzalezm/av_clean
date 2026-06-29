@@ -3,9 +3,10 @@ require_once '../includes/session.php';
 require_once '../includes/conexion.php';
 verificarSesion();
 
-// --- 1. LÓGICA DE PROCESAMIENTO (GUARDAR / EDITAR / ELIMINAR) ---
+// --- 1. LÓGICA DE PROCESAMIENTO ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
-    $id = $_POST['cliente_id'] ?? null;
+    // CORRECCIÓN: Ahora recibimos 'cliente_id' en lugar de 'id' para que coincida con el formulario
+    $id = $_POST['cliente_id'] ?? null; 
     $nombre = $_POST['nombre_completo'] ?? '';
     $email = $_POST['email'] ?? '';
     $tel = $_POST['telefono'] ?? '';
@@ -19,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             $sql = "INSERT INTO clientes (nombre_completo, email, telefono, direccion, tipo_cliente_id, dias_credito, limite_credito) VALUES (?, ?, ?, ?, ?, ?, ?)";
             $pdo->prepare($sql)->execute([$nombre, $email, $tel, $direccion, $tipo, $dias_credito, $limite_credito]);
             header("Location: cartera.php?msj=Cliente creado con éxito");
-        } elseif ($_POST['action'] == 'editar') {
+        } elseif ($_POST['action'] == 'editar' && $id) {
             $sql = "UPDATE clientes SET nombre_completo=?, email=?, telefono=?, direccion=?, tipo_cliente_id=?, dias_credito=?, limite_credito=? WHERE id=?";
             $pdo->prepare($sql)->execute([$nombre, $email, $tel, $direccion, $tipo, $dias_credito, $limite_credito, $id]);
             header("Location: cartera.php?msj=Cliente actualizado con éxito");
@@ -37,7 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 // --- 2. CONSULTAS PARA LA VISTA ---
 $tipos = $pdo->query("SELECT * FROM tipos_cliente")->fetchAll();
 
-// Consulta principal: incluye el cálculo de saldo pendiente (deuda)
 $sql = "SELECT c.*, tc.nombre as tipo_nombre, 
         (SELECT SUM(total) FROM pedidos WHERE cliente_id = c.id) as total_comprado,
         (SELECT SUM(total - monto_pagado) FROM pedidos WHERE cliente_id = c.id AND status_pago != 'Pagado') as saldo_deuda
@@ -62,22 +62,17 @@ $clientes = $pdo->query($sql)->fetchAll();
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; }
         .stat-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px; }
         .stat-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; background: #f1f5f9; color: var(--dark); }
-        
         .table-container { background: white; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #f8fafc; padding: 15px; text-align: left; font-size: 0.8rem; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
         td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-        
         .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
         .badge-deuda { background: #fee2e2; color: #ef4444; }
-        
-        /* Modal */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 550px; }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-size: 0.75rem; font-weight: bold; color: #64748b; margin-bottom: 5px; }
         input, select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
-        
         .btn-primary { background: var(--dark); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; }
         .btn-secondary { background: #e2e8f0; color: #475569; border: none; padding: 12px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; }
     </style>
@@ -219,6 +214,7 @@ $clientes = $pdo->query($sql)->fetchAll();
             document.getElementById('formCliente').reset();
             document.getElementById('modalTitle').innerText = 'Nuevo Cliente';
             document.getElementById('formAction').value = 'crear';
+            document.getElementById('modal_id').value = '';
             modal.style.display = 'flex';
         }
 
@@ -242,13 +238,13 @@ $clientes = $pdo->query($sql)->fetchAll();
             if(confirm(`¿Estás seguro de eliminar a ${nombre}?`)) {
                 const f = document.createElement('form');
                 f.method = 'POST';
+                // Aseguramos el nombre correcto del input para eliminar
                 f.innerHTML = `<input type="hidden" name="action" value="eliminar"><input type="hidden" name="cliente_id" value="${id}">`;
                 document.body.appendChild(f);
                 f.submit();
             }
         }
 
-        // Cerrar al hacer clic fuera del modal
         window.onclick = function(event) { if (event.target == modal) cerrarModal(); }
     </script>
 </body>

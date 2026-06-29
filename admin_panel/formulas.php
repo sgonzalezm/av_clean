@@ -3,7 +3,19 @@ require_once '../includes/session.php';
 require_once '../includes/conexion.php';
 verificarSesion();
 
-// 1. PROCESAR EL GUARDADO DE LA NUEVA FÓRMULA
+// 1. PROCESAR EL AJUSTE DE STOCK (NUEVO)
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajustar_stock'])) {
+    $id_formula = $_POST['id_formula'];
+    $nuevo_stock = floatval($_POST['nuevo_stock']);
+
+    $stmt = $pdo->prepare("UPDATE formulas_maestras SET stock_litros_disponibles = ? WHERE id = ?");
+    $stmt->execute([$nuevo_stock, $id_formula]);
+    
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
+}
+
+// 2. PROCESAR EL GUARDADO DE LA NUEVA FÓRMULA
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['crear_formula'])) {
     $nombre = $_POST['nombre_formula'];
     $categoria = $_POST['categoria'];
@@ -17,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['crear_formula'])) {
     exit();
 }
 
-// 2. CONSULTA: Incluimos ingredientes e insumos para el buscador
+// 3. CONSULTA: Incluimos ingredientes e insumos para el buscador
 $sql = "SELECT f.id, f.nombre_formula, f.categoria, f.stock_litros_disponibles,
         (SELECT COUNT(*) FROM formulas fi WHERE fi.id_formula_maestra = f.id) as total_ingredientes,
         (SELECT GROUP_CONCAT(i.nombre SEPARATOR ', ') 
@@ -70,9 +82,9 @@ $formulas = $pdo->query($sql)->fetchAll();
         .low-stock { border: 2px solid #fee2e2; background: #fff5f5; }
         .low-stock .tank-icon { color: #e53e3e; }
 
-        /* Modal UX */
+        /* Modal */
         .modal { display:none; position:fixed; z-index:3000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter: blur(3px); }
-        .modal-content { background:white; width:90%; max-width:500px; margin:10% auto; padding:30px; border-radius:20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-content { background:white; width:90%; max-width:400px; margin:10% auto; padding:30px; border-radius:20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
         .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 10px; margin-top: 5px; font-size: 1rem; box-sizing: border-box; }
 
         /* Media Queries */
@@ -88,6 +100,18 @@ $formulas = $pdo->query($sql)->fetchAll();
 
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2200; }
         .overlay.active { display: block; }
+        
+        .btn-ajustar-stock {
+            background: #edf2f7;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #4a5568;
+        }
+        .btn-ajustar-stock:hover {
+            background: #e2e8f0;
+        }
     </style>
 </head>
 <body>
@@ -147,8 +171,15 @@ $formulas = $pdo->query($sql)->fetchAll();
                             </span>
                         </td>
                         <td style="text-align: center;"><span style="background:#f1f5f9; padding:4px 10px; border-radius:15px; font-size:0.75rem; font-weight:bold;"><?php echo $f['total_ingredientes']; ?></span></td>
-                        <td style="text-align: right;">
-                            <a href="configurar_formula.php?id=<?php echo $f['id']; ?>" style="color:var(--accent); text-decoration:none; font-weight:bold;"><i class="fas fa-cog"></i> Configurar</a>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <!-- Botón para abrir el modal de ajuste -->
+                            <button onclick="abrirAjuste(<?php echo $f['id']; ?>, '<?php echo htmlspecialchars($f['nombre_formula']); ?>', <?php echo $stock; ?>)" 
+                                    class="btn-ajustar-stock">
+                                <i class="fas fa-edit"></i> Stock
+                            </button>
+                            <a href="configurar_formula.php?id=<?php echo $f['id']; ?>" style="color:var(--accent); margin-left:10px; text-decoration:none;">
+                                <i class="fas fa-cog"></i> Configurar
+                            </a>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -167,9 +198,15 @@ $formulas = $pdo->query($sql)->fetchAll();
                         <strong class="recipe-name" style="font-size: 1.1rem; color:#1e293b; display:block;"><?php echo htmlspecialchars($f['nombre_formula']); ?></strong>
                         <span class="tag-categoria"><?php echo $f['categoria']; ?></span>
                     </div>
-                    <a href="configurar_formula.php?id=<?php echo $f['id']; ?>" style="background:var(--accent); color:white; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;">
-                        <i class="fas fa-cog"></i>
-                    </a>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="abrirAjuste(<?php echo $f['id']; ?>, '<?php echo htmlspecialchars($f['nombre_formula']); ?>', <?php echo $stock; ?>)" 
+                                class="btn-ajustar-stock" style="background:var(--accent); color:white; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <a href="configurar_formula.php?id=<?php echo $f['id']; ?>" style="background:var(--accent); color:white; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;">
+                            <i class="fas fa-cog"></i>
+                        </a>
+                    </div>
                 </div>
 
                 <div class="tank-display <?php echo $is_low ? 'low-stock' : ''; ?>">
@@ -190,6 +227,28 @@ $formulas = $pdo->query($sql)->fetchAll();
         </div>
     </div>
 
+    <!-- MODAL PARA AJUSTAR STOCK -->
+    <div id="modalAjuste" class="modal">
+        <div class="modal-content">
+            <h2 id="tituloAjuste" style="margin-top:0; color:var(--dark);">Ajustar Inventario</h2>
+            <form method="POST" id="formAjuste">
+                <input type="hidden" name="id_formula" id="id_formula_ajuste">
+                <input type="hidden" name="ajustar_stock" value="1">
+                <div style="margin-bottom:20px;">
+                    <label style="font-size:0.8rem; font-weight:bold; color:#64748b;">NUEVA CANTIDAD TOTAL (Litros):</label>
+                    <input type="number" step="0.01" name="nuevo_stock" id="input_stock" class="form-control" required>
+                </div>
+                <button type="submit" style="width:100%; padding:15px; background:#48bb78; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">
+                    <i class="fas fa-save"></i> Guardar Nuevo Stock
+                </button>
+                <button type="button" onclick="cerrarAjuste()" style="width:100%; margin-top:10px; background:none; border:none; color:#94a3b8; cursor:pointer; font-weight:bold;">
+                    Cancelar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PARA NUEVA FÓRMULA -->
     <div id="modalNuevaFormula" class="modal">
         <div class="modal-content">
             <h2 style="margin-top:0; color:var(--dark);"><i class="fas fa-flask"></i> Nueva Fórmula Base</h2>
@@ -238,9 +297,27 @@ $formulas = $pdo->query($sql)->fetchAll();
             document.getElementById('overlay').classList.toggle('active');
         }
 
+        function abrirAjuste(id, nombre, stock) {
+            document.getElementById('id_formula_ajuste').value = id;
+            document.getElementById('tituloAjuste').innerHTML = '<i class="fas fa-gas-pump" style="color:var(--accent);"></i> Ajustar: ' + nombre;
+            document.getElementById('input_stock').value = stock;
+            document.getElementById('modalAjuste').style.display = 'block';
+        }
+
+        function cerrarAjuste() {
+            document.getElementById('modalAjuste').style.display = 'none';
+        }
+
+        // Cerrar modales al hacer clic fuera
         window.onclick = function(event) {
-            let modal = document.getElementById('modalNuevaFormula');
-            if (event.target == modal) { modal.style.display = "none"; }
+            let modalAjuste = document.getElementById('modalAjuste');
+            let modalNueva = document.getElementById('modalNuevaFormula');
+            if (event.target == modalAjuste) {
+                modalAjuste.style.display = "none";
+            }
+            if (event.target == modalNueva) {
+                modalNueva.style.display = "none";
+            }
         }
     </script>
 </body>
