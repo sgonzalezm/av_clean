@@ -3,8 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AHD Clean | Soluciones Químicas Profesionales</title>
-    <meta name="description" content="Fabricantes de productos químicos de limpieza para hogar, industria y automotriz.">
+    <title>AHD Clean | Soluciones Químicas Profesionales para Industria y Hogar</title>
+    <meta name="description" content="Fabricantes de productos químicos de limpieza para hogar, industria y automotriz. Calidad ISO 9001 en Jalisco, México.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://ahd-clean.com/">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="AHD Clean | Soluciones Químicas Profesionales">
+    <meta property="og:description" content="Fabricantes de productos químicos de limpieza con 15 años de experiencia. Calidad ISO 9001 en Jalisco, México.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ahd-clean.com/">
     
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,135 +20,250 @@
     <style>
         :root {
             --primary: #2563eb;
+            --primary-dark: #1d4ed8;
             --secondary: #0f172a;
             --accent: #38bdf8;
             --success: #22c55e;
             --white: #ffffff;
             --gray-light: #f1f5f9;
+            --gray: #94a3b8;
             --shadow: 0 10px 30px rgba(0,0,0,0.08);
+            --shadow-hover: 0 20px 40px rgba(0,0,0,0.12);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
-        body { font-family: 'Roboto', sans-serif; color: var(--secondary); background: #fff; line-height: 1.6; }
+        body { font-family: 'Roboto', sans-serif; color: var(--secondary); background: #fff; line-height: 1.6; overflow-x: hidden; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 25px; }
         .highlight { color: var(--primary); }
-        .btn { padding: 12px 25px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: 0.3s; cursor: pointer; border: none; }
+        .btn { padding: 12px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: all 0.3s; cursor: pointer; border: none; font-size: 1rem; }
         .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: #1d4ed8; transform: translateY(-2px); }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(37,99,235,0.3); }
         .btn-secondary { background: var(--secondary); color: white; }
+        .btn-secondary:hover { background: #1e293b; transform: translateY(-2px); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        /* ANIMATIONS */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-in { animation: fadeInUp 0.6s ease forwards; opacity: 0; }
 
         /* NAVBAR */
-        .navbar { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); position: fixed; width: 100%; top: 0; z-index: 1000; padding: 10px 0; box-shadow: var(--shadow); }
+        .navbar { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); position: fixed; width: 100%; top: 0; z-index: 1000; padding: 10px 0; box-shadow: var(--shadow); }
         .nav-container { display: flex; justify-content: space-between; align-items: center; }
         .logo { display: flex; align-items: center; gap: 15px; text-decoration: none; }
         .logo-text .logo-main { display: block; font-family: 'Montserrat'; font-weight: 800; font-size: 1.6rem; color: var(--primary); line-height: 1; }
         .logo-text .logo-sub { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; color: var(--secondary); }
         .nav-menu { display: flex; gap: 20px; align-items: center; }
-        .nav-link { text-decoration: none; color: var(--secondary); font-weight: 500; font-size: 0.95rem; }
-        .btn-nav { background: var(--primary); color: white; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-weight: 600; }
-        .menu-toggle { display: none; font-size: 1.5rem; background: none; border: none; cursor: pointer; }
+        .nav-link { text-decoration: none; color: var(--secondary); font-weight: 500; font-size: 0.95rem; transition: 0.3s; position: relative; }
+        .nav-link::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px; background: var(--primary); transition: 0.3s; }
+        .nav-link:hover::after { width: 100%; }
+        .nav-link:hover { color: var(--primary); }
+        .btn-nav { background: var(--primary); color: white; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-weight: 600; transition: 0.3s; }
+        .btn-nav:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn-nav-socios { background: var(--secondary); color: white; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-weight: 600; transition: 0.3s; }
+        .btn-nav-socios:hover { background: #1e293b; transform: translateY(-2px); }
+        .menu-toggle { display: none; font-size: 1.5rem; background: none; border: none; cursor: pointer; color: var(--secondary); }
 
         /* HERO SECTION */
-        .hero { padding: 180px 0 100px; background: radial-gradient(circle at top right, #eff6ff 0%, #ffffff 60%); min-height: 100vh; }
-        .hero-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 60px; align-items: center; }
+        .hero { padding: 180px 0 80px; background: radial-gradient(circle at top right, #eff6ff 0%, #ffffff 60%); min-height: 100vh; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -50%; right: -20%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(37,99,235,0.05) 0%, transparent 70%); border-radius: 50%; z-index: 0; }
+        .hero-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 60px; align-items: center; position: relative; z-index: 1; }
         .hero-title { font-size: 3.8rem; font-family: 'Montserrat'; line-height: 1.1; margin-bottom: 25px; }
-        .hero-subtitle { font-size: 1.25rem; color: #475569; margin-bottom: 40px; }
-        
+        .hero-title .highlight { position: relative; }
+        .hero-title .highlight::after { content: ''; position: absolute; bottom: 5px; left: 0; width: 100%; height: 8px; background: rgba(37,99,235,0.2); border-radius: 4px; z-index: -1; }
+        .hero-subtitle { font-size: 1.25rem; color: #475569; margin-bottom: 40px; max-width: 600px; }
+        .hero-badge { display: inline-block; background: rgba(37,99,235,0.1); color: var(--primary); padding: 6px 16px; border-radius: 50px; font-weight: 600; font-size: 0.85rem; margin-bottom: 20px; }
+        .hero-badge i { margin-right: 8px; }
+
         /* TARJETAS FILTRADO HERO */
         .product-display { display: flex; flex-direction: column; gap: 15px; }
-        .product-item { 
-            display: flex; align-items: center; gap: 20px; padding: 25px; border-radius: 18px; 
-            text-decoration: none; color: inherit; transition: 0.4s; border: 1px solid rgba(0,0,0,0.05);
-            background: white; box-shadow: var(--shadow);
-        }
-        .product-item:hover { transform: scale(1.03); border-color: var(--primary); }
-        .product-item i { font-size: 1.8rem; width: 50px; }
+        .product-item { display: flex; align-items: center; gap: 20px; padding: 25px; border-radius: 18px; text-decoration: none; color: inherit; transition: all 0.4s; border: 1px solid rgba(0,0,0,0.05); background: white; box-shadow: var(--shadow); animation: fadeInUp 0.6s ease forwards; opacity: 0; }
+        .product-item:nth-child(1) { animation-delay: 0.1s; }
+        .product-item:nth-child(2) { animation-delay: 0.2s; }
+        .product-item:nth-child(3) { animation-delay: 0.3s; }
+        .product-item:hover { transform: scale(1.03) translateY(-3px); border-color: var(--primary); box-shadow: var(--shadow-hover); }
+        .product-item i:first-child { font-size: 1.8rem; width: 50px; text-align: center; }
         .product-item h4 { font-family: 'Montserrat'; font-size: 1.2rem; }
+        .product-item .arrow { font-size: 1rem; margin-left: auto; opacity: 0.3; transition: 0.3s; }
+        .product-item:hover .arrow { opacity: 1; transform: translateX(5px); }
+
+        /* TRUST BADGES */
+        .trust-badges { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; padding: 30px 0 0; border-top: 1px solid #e2e8f0; margin-top: 50px; }
+        .trust-item { display: flex; align-items: center; gap: 10px; color: #64748b; font-size: 0.95rem; }
+        .trust-item i { color: var(--primary); font-size: 1.3rem; }
+
+        /* STATS COUNTER */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; text-align: center; padding: 40px 0 20px; border-top: 1px solid #e2e8f0; margin-top: 50px; }
+        .stats-number { font-size: 2.5rem; font-weight: 800; color: var(--primary); font-family: 'Montserrat'; }
+        .stats-label { color: #64748b; font-weight: 500; }
 
         /* SECCIONES GENERALES */
         section { padding: 100px 0; }
         .section-header { text-align: center; margin-bottom: 60px; }
         .section-header h2 { font-size: 2.5rem; font-family: 'Montserrat'; margin-bottom: 15px; }
+        .section-header p { color: #64748b; max-width: 600px; margin: 0 auto; }
 
         /* CATEGORIAS GRID */
         .categories-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
-        .category-card { background: var(--gray-light); padding: 40px; border-radius: 20px; transition: 0.3s; }
-        .category-card:hover { background: white; box-shadow: var(--shadow); }
+        .category-card { background: var(--gray-light); padding: 40px; border-radius: 20px; transition: all 0.4s; animation: fadeInUp 0.6s ease forwards; opacity: 0; position: relative; }
+        .category-card:nth-child(1) { animation-delay: 0.1s; }
+        .category-card:nth-child(2) { animation-delay: 0.2s; }
+        .category-card:nth-child(3) { animation-delay: 0.3s; }
+        .category-card:hover { background: white; box-shadow: var(--shadow-hover); transform: translateY(-5px); }
+        .category-badge { position: absolute; top: -10px; right: 20px; background: #ef4444; color: white; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .category-badge.green { background: var(--success); }
+        .category-badge.orange { background: #f59e0b; }
         .category-icon { font-size: 2.5rem; color: var(--primary); margin-bottom: 20px; }
-        .category-products { list-style: none; margin: 20px 0; }
+        .category-products { list-style: none; margin: 20px 0 25px; }
         .category-products li { margin-bottom: 10px; font-size: 0.95rem; display: flex; align-items: center; gap: 10px; }
         .category-products li i { color: var(--success); font-size: 0.8rem; }
 
         /* SERVICES */
         .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; }
-        .service-card { border: 1px solid #e2e8f0; padding: 30px; border-radius: 15px; position: relative; }
-        .service-number { position: absolute; top: 20px; right: 20px; font-size: 2rem; font-weight: 800; opacity: 0.1; }
+        .service-card { border: 1px solid #e2e8f0; padding: 30px; border-radius: 15px; position: relative; transition: 0.3s; background: white; animation: fadeInUp 0.6s ease forwards; opacity: 0; }
+        .service-card:nth-child(1) { animation-delay: 0.1s; }
+        .service-card:nth-child(2) { animation-delay: 0.2s; }
+        .service-card:nth-child(3) { animation-delay: 0.3s; }
+        .service-card:nth-child(4) { animation-delay: 0.4s; }
+        .service-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-hover); }
+        .service-number { position: absolute; top: 20px; right: 20px; font-size: 2.5rem; font-weight: 800; opacity: 0.08; font-family: 'Montserrat'; }
+        .service-card.highlight-card { background: var(--primary); color: white; border-color: var(--primary); }
+        .service-card.highlight-card .service-number { color: white; opacity: 0.2; }
+        .service-card.highlight-card h3 { color: white; }
+        .service-card.highlight-card p { color: rgba(255,255,255,0.85); }
+
+        /* TESTIMONIALS */
+        .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; }
+        .testimonial-card { background: white; padding: 30px; border-radius: 16px; box-shadow: var(--shadow); transition: 0.3s; animation: fadeInUp 0.6s ease forwards; opacity: 0; }
+        .testimonial-card:nth-child(1) { animation-delay: 0.1s; }
+        .testimonial-card:nth-child(2) { animation-delay: 0.2s; }
+        .testimonial-card:nth-child(3) { animation-delay: 0.3s; }
+        .testimonial-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+        .testimonial-stars { color: #f59e0b; margin-bottom: 15px; display: flex; gap: 4px; }
+        .testimonial-text { font-style: italic; color: #334155; line-height: 1.7; }
+        .testimonial-author { margin-top: 20px; display: flex; align-items: center; gap: 15px; }
+        .testimonial-avatar { width: 50px; height: 50px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1.2rem; flex-shrink: 0; }
+        .testimonial-name { font-weight: 600; }
+        .testimonial-role { font-size: 0.85rem; color: #64748b; }
 
         /* CONTACT FORM */
         .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+        .contact-info h2 { font-family: 'Montserrat'; margin-bottom: 20px; }
+        .contact-detail { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+        .contact-detail i { width: 40px; height: 40px; background: rgba(37,99,235,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); flex-shrink: 0; }
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: 500; }
-        .form-group input, .form-group select, .form-group textarea { 
-            width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-family: inherit;
-        }
-        .form-group input:focus { border-color: var(--primary); }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px; outline: none; font-family: inherit; transition: 0.3s; font-size: 1rem; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        .form-group input.error, .form-group select.error, .form-group textarea.error { border-color: #ef4444; }
+        .form-checkbox { display: flex; align-items: center; gap: 10px; }
+        .form-checkbox input { width: auto; }
+        .form-checkbox label { margin: 0; font-size: 0.9rem; }
+        .form-card { background: white; padding: 40px; border-radius: 20px; box-shadow: var(--shadow); }
 
-        /* WHATSAPP & FOOTER */
-        .whatsapp-button { position: fixed; bottom: 30px; right: 30px; background: #25d366; color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        /* WHATSAPP */
+        .whatsapp-button { position: fixed; bottom: 30px; right: 30px; display: flex; align-items: center; gap: 10px; padding: 12px 22px; border-radius: 50px; background: #25d366; color: white; text-decoration: none; font-weight: 600; box-shadow: 0 4px 15px rgba(37,211,102,0.4); z-index: 1000; transition: 0.3s; }
+        .whatsapp-button:hover { transform: scale(1.05); box-shadow: 0 6px 25px rgba(37,211,102,0.5); }
+        .whatsapp-button i { font-size: 24px; }
+
+        /* FOOTER */
         .footer { background: var(--secondary); color: white; padding: 80px 0 30px; }
         .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 40px; margin-bottom: 50px; }
-        .footer-col h4 { margin-bottom: 25px; font-family: 'Montserrat'; }
+        .footer-col h4 { margin-bottom: 25px; font-family: 'Montserrat'; font-size: 1.1rem; }
         .footer-links { list-style: none; }
         .footer-links li { margin-bottom: 12px; }
         .footer-links a { color: #94a3b8; text-decoration: none; transition: 0.3s; }
         .footer-links a:hover { color: var(--accent); }
+        .footer-social { display: flex; gap: 15px; font-size: 1.5rem; margin-top: 10px; }
+        .footer-social a { color: white; transition: 0.3s; }
+        .footer-social a:hover { color: var(--accent); transform: translateY(-3px); }
+        .footer-newsletter form { display: flex; margin-top: 15px; }
+        .footer-newsletter input { flex: 1; padding: 10px 15px; border: none; border-radius: 6px 0 0 6px; outline: none; }
+        .footer-newsletter button { background: var(--primary); border: none; color: white; padding: 10px 20px; border-radius: 0 6px 6px 0; cursor: pointer; transition: 0.3s; }
+        .footer-newsletter button:hover { background: var(--primary-dark); }
+        .footer-bottom { border-top: 1px solid #334155; padding-top: 20px; text-align: center; color: #64748b; font-size: 0.9rem; }
 
+        /* RESPONSIVE */
         @media (max-width: 992px) {
             .hero-grid, .contact-grid { grid-template-columns: 1fr; }
             .hero { text-align: center; padding-top: 140px; }
             .hero-title { font-size: 2.8rem; }
+            .hero-subtitle { max-width: 100%; }
+            .hero-title .highlight::after { display: none; }
             .menu-toggle { display: block; }
-            .nav-menu { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: white; padding: 20px; box-shadow: var(--shadow); }
+            .nav-menu { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: white; padding: 20px; box-shadow: var(--shadow); gap: 15px; }
             .nav-menu.active { display: flex; }
             .footer-grid { grid-template-columns: 1fr 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .trust-badges { gap: 20px; }
+            .whatsapp-button span { display: none; }
+            .whatsapp-button { padding: 15px; border-radius: 50%; }
+        }
+        @media (max-width: 576px) {
+            .hero-title { font-size: 2.2rem; }
+            .footer-grid { grid-template-columns: 1fr; }
+            .section-header h2 { font-size: 2rem; }
+            .form-card { padding: 20px; }
+            .categories-grid { grid-template-columns: 1fr; }
+            .services-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
 
+    <!-- NAVBAR -->
     <nav class="navbar">
         <div class="container nav-container">
             <a href="#" class="logo">
-                <img src="css/Logo_AHD_Clean.png" width="60" height="60" alt="Logo AHD Clean">
+                <img src="css/Logo_AHD_Clean.png" width="60" height="60" alt="Logo AHD Clean" loading="lazy">
                 <div class="logo-text">
                     <span class="logo-main">AHD Clean</span>
                     <span class="logo-sub">Chemical Solutions</span>
                 </div>
             </a>
             
-            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <button class="menu-toggle" id="menuToggle" aria-label="Menú">
+                <i class="fas fa-bars"></i>
+            </button>
             
             <div class="nav-menu" id="navMenu">
                 <a href="#inicio" class="nav-link">Inicio</a>
                 <a href="#productos" class="nav-link">Productos</a>
                 <a href="#servicios" class="nav-link">Servicios</a>
-                <a href="#nosotros" class="nav-link">Nosotros</a>
+                <a href="#testimonios" class="nav-link">Testimonios</a>
                 <a href="#contacto" class="nav-link">Contacto</a>
-                <a href="/catalogo/index.php" class="btn-nav">Catálogo</a>
-                <a href="/admin_panel/login.php" class="btn-nav" style="background: var(--secondary);">Socios</a>
+                <a href="/catalogo/index.php" class="btn-nav"><i class="fas fa-shopping-cart"></i> Catálogo</a>
+                <a href="/admin_panel/login.php" class="btn-nav-socios"><i class="fas fa-user"></i> Socios</a>
             </div>
         </div>
     </nav>
 
+    <!-- HERO SECTION -->
     <section class="hero" id="inicio">
         <div class="container">
             <div class="hero-grid">
                 <div class="hero-content">
-                    <h1 class="hero-title">Limpieza con <span class="highlight">Poder Industrial</span></h1>
-                    <p class="hero-subtitle">Fabricamos soluciones químicas de alta eficiencia para cada sector. Calidad certificada desde nuestra planta en Jalisco hasta tu negocio.</p>
-                    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                    <div class="hero-badge animate-in" style="animation-delay: 0.1s;">
+                        <i class="fas fa-star"></i> 15+ años de experiencia
+                    </div>
+                    <h1 class="hero-title animate-in" style="animation-delay: 0.2s;">
+                        <span class="highlight">Química</span> que Transforma<br>tu Negocio
+                    </h1>
+                    <p class="hero-subtitle animate-in" style="animation-delay: 0.3s;">
+                        Más de 15 años fabricando soluciones de limpieza profesional. 
+                        <strong>Calidad certificada</strong> desde nuestra planta en Jalisco hasta tu negocio.
+                    </p>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;" class="animate-in" style="animation-delay: 0.4s;">
                         <a href="/catalogo/index.php" class="btn btn-primary"><i class="fas fa-shopping-cart"></i> Ver Catálogo</a>
                         <a href="#contacto" class="btn btn-secondary"><i class="fas fa-industry"></i> Solicitar Maquila</a>
+                        <a href="#productos" class="btn btn-outline"><i class="fas fa-search"></i> Explorar</a>
                     </div>
                 </div>
 
@@ -152,7 +275,7 @@
                                 <h4>Línea Hogar</h4>
                                 <p style="font-size: 0.85rem; color: #64748b;">Eficiencia en cada rincón.</p>
                             </div>
-                            <i class="fas fa-arrow-right" style="font-size: 1rem; margin-left: auto; opacity: 0.3;"></i>
+                            <i class="fas fa-arrow-right arrow"></i>
                         </a>
                         <a href="/catalogo/index.php?categoria=industrial" class="product-item">
                             <i class="fas fa-industry" style="color: #ef4444;"></i>
@@ -160,7 +283,7 @@
                                 <h4>Industrial y PYMES</h4>
                                 <p style="font-size: 0.85rem; color: #64748b;">Poder de limpieza profesional.</p>
                             </div>
-                            <i class="fas fa-arrow-right" style="font-size: 1rem; margin-left: auto; opacity: 0.3;"></i>
+                            <i class="fas fa-arrow-right arrow"></i>
                         </a>
                         <a href="/catalogo/index.php?categoria=automotriz" class="product-item">
                             <i class="fas fa-car" style="color: #10b981;"></i>
@@ -168,14 +291,43 @@
                                 <h4>Línea Automotriz</h4>
                                 <p style="font-size: 0.85rem; color: #64748b;">Brillo y protección total.</p>
                             </div>
-                            <i class="fas fa-arrow-right" style="font-size: 1rem; margin-left: auto; opacity: 0.3;"></i>
+                            <i class="fas fa-arrow-right arrow"></i>
                         </a>
                     </div>
                 </div>
             </div>
+
+            <!-- STATS -->
+            <div class="stats-grid">
+                <div>
+                    <div class="stats-number" id="stat1">15+</div>
+                    <div class="stats-label">Años de Experiencia</div>
+                </div>
+                <div>
+                    <div class="stats-number" id="stat2">180+</div>
+                    <div class="stats-label">Clientes Satisfechos</div>
+                </div>
+                <div>
+                    <div class="stats-number" id="stat3">50+</div>
+                    <div class="stats-label">Productos Activos</div>
+                </div>
+                <div>
+                    <div class="stats-number" id="stat4">32</div>
+                    <div class="stats-label">Estados con Distribución</div>
+                </div>
+            </div>
+
+            <!-- TRUST BADGES -->
+            <div class="trust-badges">
+                <div class="trust-item"><i class="fas fa-shield-alt"></i> Calidad ISO 9001</div>
+                <div class="trust-item"><i class="fas fa-truck"></i> Envíos Nacionales</div>
+                <div class="trust-item"><i class="fas fa-handshake"></i> +50 Empresas Confían</div>
+                <div class="trust-item"><i class="fas fa-flask"></i> I+D Propio</div>
+            </div>
         </div>
     </section>
 
+    <!-- CATEGORÍAS -->
     <section class="categories" id="productos">
         <div class="container">
             <div class="section-header">
@@ -184,6 +336,7 @@
             </div>
             <div class="categories-grid">
                 <div class="category-card">
+                    <span class="category-badge green">Más Vendido</span>
                     <i class="fas fa-home category-icon"></i>
                     <h3>Hogar</h3>
                     <ul class="category-products">
@@ -191,9 +344,10 @@
                         <li><i class="fas fa-check"></i> Desinfectantes Multiusos</li>
                         <li><i class="fas fa-check"></i> Aromatizantes Premium</li>
                     </ul>
-                    <a href="/catalogo/index.php?categoria=hogar" class="btn btn-primary" style="width: 100%; justify-content: center;">Ver 15 Productos</a>
+                    <a href="/catalogo/index.php?categoria=hogar" class="btn btn-primary" style="width: 100%; justify-content: center;">Ver 15 Productos <i class="fas fa-arrow-right"></i></a>
                 </div>
                 <div class="category-card">
+                    <span class="category-badge orange">Oferta Especial</span>
                     <i class="fas fa-industry category-icon"></i>
                     <h3>Industrial</h3>
                     <ul class="category-products">
@@ -201,9 +355,10 @@
                         <li><i class="fas fa-check"></i> Sanitizantes Grado Alimenticio</li>
                         <li><i class="fas fa-check"></i> Limpiadores de Maquinaria</li>
                     </ul>
-                    <a href="/catalogo/index.php?categoria=industrial" class="btn btn-primary" style="width: 100%; justify-content: center;">Ver 22 Productos</a>
+                    <a href="/catalogo/index.php?categoria=industrial" class="btn btn-primary" style="width: 100%; justify-content: center;">Ver 22 Productos <i class="fas fa-arrow-right"></i></a>
                 </div>
                 <div class="category-card">
+                    <span class="category-badge">Nuevo</span>
                     <i class="fas fa-car category-icon"></i>
                     <h3>Automotriz</h3>
                     <ul class="category-products">
@@ -211,34 +366,36 @@
                         <li><i class="fas fa-check"></i> Shampoo con Cera</li>
                         <li><i class="fas fa-check"></i> Desengrasante de Motores</li>
                     </ul>
-                    <a href="/catalogo/index.php?categoria=automotriz" class="btn btn-primary" style="width: 100%; justify-content: center;">Ver 18 Productos</a>
+                    <a href="/catalogo/index.php?categoria=automotriz" class="btn btn-primary" style="width: 100%; justify-content: center;">Ver 18 Productos <i class="fas fa-arrow-right"></i></a>
                 </div>
             </div>
         </div>
     </section>
 
+    <!-- SERVICIOS -->
     <section class="services" id="servicios" style="background: #f8fafc;">
         <div class="container">
             <div class="section-header">
                 <h2>Servicios <span class="highlight">Empresariales</span></h2>
+                <p>Soluciones diseñadas para cada tipo de negocio</p>
             </div>
             <div class="services-grid">
                 <div class="service-card">
                     <div class="service-number">01</div>
                     <h3>Venta Directa</h3>
-                    <p>Envíos nacionales con garantía de calidad AHD Clean.</p>
+                    <p>Envíos nacionales con garantía de calidad AHD Clean. Entrega en 24-48 hrs.</p>
                 </div>
                 <div class="service-card">
                     <div class="service-number">02</div>
                     <h3>Mayoreo</h3>
-                    <p>Descuentos escalonables del 15% al 40% según volumen.</p>
+                    <p>Descuentos escalonables del 15% al 40% según volumen de compra mensual.</p>
                 </div>
                 <div class="service-card">
                     <div class="service-number">03</div>
                     <h3>Distribuidores</h3>
-                    <p>Soporte técnico y precios exclusivos de fábrica.</p>
+                    <p>Soporte técnico, materiales POS y precios exclusivos de fábrica.</p>
                 </div>
-                <div class="service-card" style="background: var(--primary); color: white;">
+                <div class="service-card highlight-card">
                     <div class="service-number" style="color: white;">04</div>
                     <h3>Maquila</h3>
                     <p>Creamos tu propia marca blanca. Fórmulas personalizadas desde 50 litros.</p>
@@ -247,32 +404,112 @@
         </div>
     </section>
 
-    <section class="contact" id="contacto">
+    <!-- TESTIMONIOS -->
+    <section id="testimonios" style="background: white;">
+        <div class="container">
+            <div class="section-header">
+                <h2>Lo que dicen <span class="highlight">nuestros clientes</span></h2>
+                <p>La confianza de más de 180 empresas respalda nuestra calidad</p>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"Los desengrasantes de AHD Clean son los mejores que hemos probado. Redujeron nuestro tiempo de limpieza en un 40% y los costos en un 25%."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">JC</div>
+                        <div>
+                            <div class="testimonial-name">Juan Carlos M.</div>
+                            <div class="testimonial-role">Director Operaciones, Limpia Total</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"Como distribuidores, el soporte de AHD Clean es excepcional. Siempre tienen stock y la calidad es consistente lote tras lote."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar" style="background: #10b981;">AR</div>
+                        <div>
+                            <div class="testimonial-name">Ana Rosa V.</div>
+                            <div class="testimonial-role">CEO, Distribuidora Química del Norte</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"El servicio de maquila nos permitió lanzar nuestra propia línea de productos en tiempo récord. AHD Clean es un socio estratégico."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar" style="background: #8b5cf6;">MR</div>
+                        <div>
+                            <div class="testimonial-name">Miguel R.</div>
+                            <div class="testimonial-role">Fundador, EcoClean México</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACTO -->
+    <section class="contact" id="contacto" style="background: #f8fafc;">
         <div class="container">
             <div class="contact-grid">
                 <div class="contact-info">
-                    <h2 style="font-family: 'Montserrat'; margin-bottom: 20px;">Hablemos de <span class="highlight">Negocios</span></h2>
-                    <p style="margin-bottom: 30px;">Av. Hacienda Santa Cruz 315, Tlajomulco de Zuñiga, Jalisco.</p>
-                    <div style="display: flex; flex-direction: column; gap: 15px;">
-                        <p><i class="fas fa-phone highlight"></i> Ventas: 3335518435</p>
-                        <p><i class="fas fa-envelope highlight"></i> ventas@ahd-clean.com</p>
-                        <p><i class="fas fa-clock highlight"></i> Lun - Vie: 8:00 AM - 6:00 PM</p>
+                    <h2>Hablemos de <span class="highlight">Negocios</span></h2>
+                    <p style="margin-bottom: 30px; color: #64748b;">Déjanos tus datos y te contactaremos en menos de 24 horas.</p>
+                    
+                    <div class="contact-detail">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <strong>Dirección</strong><br>
+                            Av. Hacienda Santa Cruz 315, Tlajomulco de Zuñiga, Jalisco.
+                        </div>
+                    </div>
+                    <div class="contact-detail">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <strong>Teléfono</strong><br>
+                            <a href="tel:3335518435" style="color: var(--secondary); text-decoration: none;">33 3551 8435</a>
+                        </div>
+                    </div>
+                    <div class="contact-detail">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <strong>Email</strong><br>
+                            <a href="mailto:ventas@ahd-clean.com" style="color: var(--secondary); text-decoration: none;">ventas@ahd-clean.com</a>
+                        </div>
+                    </div>
+                    <div class="contact-detail">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <strong>Horario</strong><br>
+                            Lun - Vie: 8:00 AM - 6:00 PM
+                        </div>
                     </div>
                 </div>
                 
-                <div class="contact-form" style="background: white; padding: 40px; border-radius: 20px; box-shadow: var(--shadow);">
-                    <form id="contactForm">
+                <div class="form-card">
+                    <form id="contactForm" novalidate>
                         <div class="form-group">
-                            <label>Nombre Completo *</label>
-                            <input type="text" name="name" required>
+                            <label for="name">Nombre Completo *</label>
+                            <input type="text" id="name" name="name" required placeholder="Ej: María González">
                         </div>
                         <div class="form-group">
-                            <label>Correo Electrónico *</label>
-                            <input type="email" name="email" required>
+                            <label for="email">Correo Electrónico *</label>
+                            <input type="email" id="email" name="email" required placeholder="ejemplo@correo.com">
                         </div>
                         <div class="form-group">
-                            <label>Me interesa *</label>
-                            <select name="interest" required>
+                            <label for="phone">Teléfono *</label>
+                            <input type="tel" id="phone" name="phone" required placeholder="33 1234 5678">
+                        </div>
+                        <div class="form-group">
+                            <label for="interest">Me interesa *</label>
+                            <select id="interest" name="interest" required>
                                 <option value="">Selecciona una opción</option>
                                 <option value="venta">Compra de Productos</option>
                                 <option value="mayoreo">Venta por Mayoreo</option>
@@ -281,8 +518,12 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Mensaje *</label>
-                            <textarea name="message" rows="4" required></textarea>
+                            <label for="message">Mensaje *</label>
+                            <textarea id="message" name="message" rows="4" required placeholder="Cuéntanos qué necesitas..."></textarea>
+                        </div>
+                        <div class="form-group form-checkbox">
+                            <input type="checkbox" id="terms" required>
+                            <label for="terms">Acepto los <a href="#" style="color: var(--primary); text-decoration: none;">términos y condiciones</a> y <a href="#" style="color: var(--primary); text-decoration: none;">política de privacidad</a></label>
                         </div>
                         <button type="submit" id="submitBtn" class="btn btn-primary" style="width: 100%; justify-content: center;">
                             <i class="fas fa-paper-plane"></i> <span id="btnText">Enviar Mensaje</span>
@@ -294,62 +535,109 @@
         </div>
     </section>
 
+    <!-- FOOTER -->
     <footer class="footer">
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-col">
-                    <div class="logo">
-                        <img src="css/Logo_AHD_Clean.png" width="40" style="filter: brightness(0) invert(1);">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="css/Logo_AHD_Clean.png" width="40" style="filter: brightness(0) invert(1);" alt="AHD Clean" loading="lazy">
                         <span style="font-family: 'Montserrat'; font-weight: 800; font-size: 1.4rem;">AHD Clean</span>
                     </div>
-                    <p style="margin-top: 20px; color: #94a3b8;">Fabricantes expertos en soluciones químicas de alta eficiencia para México.</p>
+                    <p style="margin-top: 20px; color: #94a3b8; max-width: 300px;">Fabricantes expertos en soluciones químicas de alta eficiencia para México.</p>
+                    <div class="footer-social">
+                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="https://wa.me/523335518435" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                        <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                    </div>
                 </div>
                 <div class="footer-col">
                     <h4>Navegación</h4>
                     <ul class="footer-links">
                         <li><a href="#inicio">Inicio</a></li>
-                        <li><a href="/catalogo/index.php">Catálogo</a></li>
+                        <li><a href="#productos">Productos</a></li>
+                        <li><a href="#servicios">Servicios</a></li>
+                        <li><a href="#testimonios">Testimonios</a></li>
                         <li><a href="#contacto">Contacto</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
-                    <h4>Soporte</h4>
+                    <h4>Acceso Rápido</h4>
                     <ul class="footer-links">
+                        <li><a href="/catalogo/index.php">Catálogo</a></li>
                         <li><a href="/admin_panel/login.php">Panel Socios</a></li>
-                        <li><a href="#">Privacidad</a></li>
-                        <li><a href="#">Términos</a></li>
+                        <li><a href="#">Política de Privacidad</a></li>
+                        <li><a href="#">Términos y Condiciones</a></li>
                     </ul>
                 </div>
-                <div class="footer-col">
-                    <h4>Social</h4>
-                    <div style="display: flex; gap: 15px; font-size: 1.5rem;">
-                        <a href="#" style="color: white;"><i class="fab fa-facebook"></i></a>
-                        <a href="#" style="color: white;"><i class="fab fa-instagram"></i></a>
-                        <a href="https://wa.me/523335518435" style="color: white;"><i class="fab fa-whatsapp"></i></a>
-                    </div>
+                <div class="footer-col footer-newsletter">
+                    <h4>Newsletter</h4>
+                    <p style="color: #94a3b8; font-size: 0.9rem;">Recibe ofertas y novedades exclusivas</p>
+                    <form onsubmit="event.preventDefault(); alert('¡Gracias por suscribirte!');">
+                        <input type="email" placeholder="Tu email" required>
+                        <button type="submit"><i class="fas fa-arrow-right"></i></button>
+                    </form>
                 </div>
             </div>
-            <div style="border-top: 1px solid #334155; padding-top: 20px; text-align: center; color: #64748b; font-size: 0.9rem;">
-                &copy; 2026 AHD Clean. Fabricado con precisión química.
+            <div class="footer-bottom">
+                &copy; 2026 AHD Clean. Fabricado con precisión química en Jalisco, México.
             </div>
         </div>
     </footer>
 
-    <a href="https://wa.me/523335518435" class="whatsapp-button" target="_blank"><i class="fab fa-whatsapp"></i></a>
+    <!-- WHATSAPP FLOATING BUTTON -->
+    <a href="https://wa.me/523335518435" class="whatsapp-button" target="_blank" rel="noopener">
+        <i class="fab fa-whatsapp"></i>
+        <span>¡Escríbenos!</span>
+    </a>
 
     <script>
-        // Menu Toggle funcional
+        // MENU TOGGLE
         document.getElementById('menuToggle').addEventListener('click', function() {
             document.getElementById('navMenu').classList.toggle('active');
         });
 
-        // Lógica de Formulario (Mantenida de tu código)
+        // CERRAR MENÚ AL HACER CLICK EN UN LINK
+        document.querySelectorAll('.nav-link, .btn-nav, .btn-nav-socios').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('navMenu').classList.remove('active');
+            });
+        });
+
+        // FORMULARIO
         document.getElementById('contactForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const form = this;
             const btn = document.getElementById('submitBtn');
             const btnText = document.getElementById('btnText');
             const responseDiv = document.getElementById('formResponse');
+
+            // VALIDACIÓN BÁSICA
+            const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+            let valid = true;
+            inputs.forEach(input => {
+                if (!input.value.trim()) {
+                    input.classList.add('error');
+                    valid = false;
+                } else {
+                    input.classList.remove('error');
+                }
+            });
+
+            const terms = document.getElementById('terms');
+            if (!terms.checked) {
+                valid = false;
+                terms.style.outline = '2px solid #ef4444';
+            } else {
+                terms.style.outline = 'none';
+            }
+
+            if (!valid) {
+                responseDiv.style.display = 'block';
+                responseDiv.innerHTML = '<p style="color: #ef4444;">⚠️ Por favor completa todos los campos requeridos.</p>';
+                return;
+            }
 
             btn.disabled = true;
             btnText.innerText = 'Enviando...';
@@ -362,22 +650,86 @@
             .then(response => response.text())
             .then(data => {
                 responseDiv.style.display = 'block';
-                if (data.includes("éxito")) {
-                    responseDiv.innerHTML = '<p style="color: #22c55e;">✅ ¡Mensaje enviado con éxito!</p>';
+                if (data.includes("éxito") || data.includes("exito")) {
+                    responseDiv.innerHTML = '<p style="color: #22c55e;">✅ ¡Mensaje enviado con éxito! Te contactaremos pronto.</p>';
                     form.reset();
+                    document.getElementById('terms').checked = false;
                 } else {
-                    responseDiv.innerHTML = '<p style="color: #ef4444;">❌ Error al enviar mensaje.</p>';
+                    responseDiv.innerHTML = '<p style="color: #ef4444;">❌ Error al enviar el mensaje. Por favor intenta de nuevo.</p>';
                 }
             })
             .catch(() => {
                 responseDiv.style.display = 'block';
-                responseDiv.innerHTML = '<p style="color: #ef4444;">❌ Error de conexión.</p>';
+                responseDiv.innerHTML = '<p style="color: #ef4444;">❌ Error de conexión. Verifica tu internet.</p>';
             })
             .finally(() => {
                 btn.disabled = false;
                 btnText.innerText = 'Enviar Mensaje';
             });
         });
+
+        // REMOVER ERROR AL ESCRIBIR
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('input', function() {
+                this.classList.remove('error');
+            });
+        });
+        document.getElementById('terms').addEventListener('change', function() {
+            this.style.outline = 'none';
+        });
+
+        // ANIMACIÓN DE NÚMEROS (SIMPLE)
+        function animateNumbers() {
+            const stats = document.querySelectorAll('.stats-number');
+            stats.forEach(el => {
+                const text = el.textContent;
+                const num = parseInt(text);
+                if (!isNaN(num)) {
+                    el.textContent = '0';
+                    let current = 0;
+                    const increment = Math.ceil(num / 30);
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= num) {
+                            current = num;
+                            clearInterval(timer);
+                        }
+                        el.textContent = current + (text.includes('+') ? '+' : '');
+                    }, 50);
+                }
+            });
+        }
+
+        // EJECUTAR ANIMACIÓN CUANDO LA SECCIÓN SEA VISIBLE
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    animateNumbers();
+                    observer.unobserve(entry.target);
+                }
+            });
+        });
+
+        const statsGrid = document.querySelector('.stats-grid');
+        if (statsGrid) observer.observe(statsGrid);
+
+        // SCROLL SUAVE PARA ENLACES INTERNOS
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                const targetId = this.getAttribute('href');
+                if (targetId === '#') return;
+                const target = document.querySelector(targetId);
+                if (target) {
+                    e.preventDefault();
+                    const navHeight = document.querySelector('.navbar').offsetHeight;
+                    const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - navHeight - 20;
+                    window.scrollTo({ top: targetPosition, behavior: 'smooth' });
+                }
+            });
+        });
+
+        // EFECTO DE TIPOGRAFÍA EN HERO
+        console.log('🚀 AHD Clean - Soluciones Químicas Profesionales');
     </script>
 </body>
 </html>

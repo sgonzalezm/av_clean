@@ -28,6 +28,9 @@ function claseActiva($pagina) {
 ?>
 <div class="sidebar">
     <h2><i class="fas fa-store"></i> Panel Admin</h2>
+    <a href="../index.html" class="<?php echo claseActiva('../index.html'); ?>">
+        <i class="fas fa-home"></i> AHD Clean
+    </a>
     
     <!-- Enlaces visibles para todos los usuarios autenticados -->
     <a href="index.php" class="<?php echo claseActiva('index.php'); ?>">

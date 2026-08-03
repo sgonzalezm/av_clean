@@ -12,15 +12,18 @@ $response = ['success' => false, 'message' => 'Producto no encontrado', 'total_i
 if ($id > 0) {
     // Agregar al carrito
     if (isset($_SESSION['carrito'][$id])) {
-        $_SESSION['carrito'][$id]++;
+        $_SESSION['carrito'][$id]['cantidad'] += 1;
     } else {
-        $_SESSION['carrito'][$id] = 1;
+        $_SESSION['carrito'][$id] = [
+            'id' => $id,
+            'cantidad' => 1
+        ];
     }
     
     // Calcular total de items
     $total = 0;
-    foreach ($_SESSION['carrito'] as $cantidad) {
-        $total += $cantidad;
+    foreach ($_SESSION['carrito'] as $item) {
+        $total += $item['cantidad'];
     }
     
     $response = [
