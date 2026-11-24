@@ -1,0 +1,41 @@
+<?php
+$host = 'localhost';
+$dbname = 'u918498641_catalogo_db';
+$username = 'u918498641_sgonzalezm';
+$password = '3lR10Quefluye$';
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    die("Error de conexión: " . $e->getMessage());
+}
+
+function registrarAuditoria($pdo, $accion, $tabla, $id_reg, $detalle) {
+    // Si no hay sesión (ej. error en login), el usuario es 'Sistema'
+    $id_user = $_SESSION['id_usuario'] ?? 0;
+    $nom_user = $_SESSION['usuario'] ?? 'Sistema';
+    
+    $sql = "INSERT INTO auditoria (id_usuario, usuario_nombre, accion, tabla_afectada, id_registro_afectado, descripcion) 
+            VALUES (?, ?, ?, ?, ?, ?)";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$id_user, $nom_user, $accion, $tabla, $id_reg, $detalle]);
+}
+
+function trivia_json($data) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($data);
+    exit;
+}
+
+function trivia_post($k, $d = null) { return $_POST[$k] ?? $d; }
+function trivia_get($k, $d = null)  { return $_GET[$k]  ?? $d; }
+
+// Genera código legible sin caracteres ambiguos
+function trivia_codigo() {
+    $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin 0,O,1,I
+    $c = '';
+    for ($i = 0; $i < 6; $i++) $c .= $chars[random_int(0, strlen($chars)-1)];
+    return $c;
+}
+?>
